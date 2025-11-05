@@ -1,7 +1,7 @@
 from flask import Flask
 from routes.macros_routes import macros_bp
 from routes.mealplan_routes import mealplan_bp
-
+import os
 app = Flask(__name__)
 
 # Register blueprints
