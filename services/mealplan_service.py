@@ -1,12 +1,14 @@
 import random
+from typing import Dict, Any, List, Tuple
+
+from pulp import (
+    LpProblem, LpMinimize, LpVariable, lpSum, LpInteger, value,
+    PULP_CBC_CMD, LpStatus
+)
 from utils.supabase_client import supabase
 
 
-def get_recipe_subrecipes(recipe_id):
-    """
-    Returns a list of subrecipes for a given recipe with their per-serving macros and max_serving.
-    Uses the precomputed macros stored on subrecipe (one serving).
-    """
+def get_recipe_subrecipes(recipe_id: int) -> List[Dict[str, Any]]:
     resp = (
         supabase.table("recipe_subrecipe")
         .select("subrecipe(id, name, max_serving, kcal, protein, carbs, fat)")
@@ -15,7 +17,7 @@ def get_recipe_subrecipes(recipe_id):
     )
 
     subrecipes = []
-    for rs in resp.data:
+    for rs in resp.data or []:
         sub = rs.get("subrecipe") or {}
         subrecipes.append({
             "id": sub.get("id"),
@@ -32,127 +34,216 @@ def get_recipe_subrecipes(recipe_id):
     return subrecipes
 
 
-def optimize_subrecipes(recipes_by_meal, macro_target):
+def optimize_subrecipes(
+    recipes_by_meal: Dict[str, Dict[str, Any]],
+    macro_target: Dict[str, float],
+) -> Tuple[List[Dict[str, Any]], float, Dict[str, Any]]:
     """
-    Optimizes subrecipe servings (integers) to fit macro targets and calorie distribution rules.
+    recipes_by_meal:
+      {
+        "breakfast": { "recipe_id": 1, "meal_type": "breakfast", ... },
+        "lunch":     { "recipe_id": 2, "meal_type": "lunch", ... }
+      }
 
-    - Servings are integers in [1, max_serving]
-    - Rules:
-        * Breakfast <= 30% of total kcal
-        * Snack    <= 20% of total kcal
-        * Dinner and Lunch within ±20% of each other
-      (Penalized, not hard-forbidden)
-    - Returns: optimized_subs, total_error, day_totals
+    macro_target:
+      { "protein_g": 150, "carbs_g": 200, "fat_g": 60 }
+
+    Returns:
+      optimized_subs: [
+        {
+          "subrecipe_id": 10,
+          "name": "Oats base",
+          "meal_name": "breakfast",
+          "meal_type": "breakfast",
+          "servings": 2,
+          "macros": { "protein": ..., "carbs": ..., "fat": ..., "kcal": ... }
+        },
+        ...
+      ],
+      total_error: float,
+      totals: { "protein": ..., "carbs": ..., "fat": ..., "kcal": ..., "tolerance_used": ... }
     """
 
-    # ---- Gather subrecipes with macros per serving ----
-    all_subs = []  # each: {meal, subrecipe_id, name, macros, max_serving}
-    for meal, info in recipes_by_meal.items():
+    # -------------------------------------------------------------
+    # Config
+    # -------------------------------------------------------------
+    KCAL_TOLERANCES = [0.10, 0.15, 0.20]
+
+    BREAKFAST_MAX_PCT = 0.30
+    SNACK_MAX_PCT = 0.20
+    DINNER_LUNCH_DIFF_PCT = 0.20
+    NO_DINNER_YES_LUNCH_PCT = 0.6
+    NO_LUNCH_YES_DINNER_PCT = 0.6
+
+    SERVING_MIN = 1
+    DEFAULT_MAX_SERVING = 3
+
+    WEIGHT_PROTEIN = 1.0
+    WEIGHT_CARBS = 1.0
+    WEIGHT_FAT = 1.0
+
+    # -------------------------------------------------------------
+    # Collect all subrecipes
+    # -------------------------------------------------------------
+    all_subs = []
+    for meal_key, info in recipes_by_meal.items():
         subs = get_recipe_subrecipes(info["recipe_id"])
         for s in subs:
             all_subs.append({
-                "meal": meal,
+                "meal": meal_key,
                 "subrecipe_id": s["id"],
                 "name": s["name"],
-                "macros": s["macros"],   # per serving
-                "max_serving": s["max_serving"]
+                "macros": s["macros"],
+                "max_serving": s["max_serving"] or DEFAULT_MAX_SERVING,
             })
 
     if not all_subs:
         return [], 0.0, {"protein": 0, "carbs": 0, "fat": 0, "kcal": 0}
 
-    # ---- Targets ----
+    # Targets
     P_t = macro_target.get("protein_g") or 0.0
     C_t = macro_target.get("carbs_g") or 0.0
     F_t = macro_target.get("fat_g") or 0.0
     kcal_t = 4 * (P_t + C_t) + 9 * F_t
 
-    # ---- Random discrete search ----
-    best_combo = None
-    best_error = float("inf")
+    # Try several kcal tolerances until feasible
+    for tol in KCAL_TOLERANCES:
+        prob = LpProblem(f"MealPlanOptimization_{int(tol * 100)}", LpMinimize)
 
-    iterations = 4000  # can tune
+        # Variables: servings per subrecipe
+        servings = {
+            i: LpVariable(
+                f"x_{i}",
+                lowBound=SERVING_MIN,
+                upBound=s["max_serving"],
+                cat=LpInteger,
+            )
+            for i, s in enumerate(all_subs)
+        }
 
-    for _ in range(iterations):
-        combo = []
-        for s in all_subs:
-            max_sv = int(s["max_serving"] or 1)
-            if max_sv < 1:
-                max_sv = 1
-            # integer servings between 1 and max_serving
-            combo.append(random.randint(1, max_sv))
+        # Total macros
+        total_P = lpSum(servings[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
+        total_C = lpSum(servings[i] * s["macros"]["carbs"] for i, s in enumerate(all_subs))
+        total_F = lpSum(servings[i] * s["macros"]["fat"] for i, s in enumerate(all_subs))
+        total_K = lpSum(servings[i] * s["macros"]["kcal"] for i, s in enumerate(all_subs))
 
-        # Totals
-        total_P = sum(combo[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
-        total_C = sum(combo[i] * s["macros"]["carbs"] for i, s in enumerate(all_subs))
-        total_F = sum(combo[i] * s["macros"]["fat"] for i, s in enumerate(all_subs))
-        total_K = sum(combo[i] * s["macros"]["kcal"] for i, s in enumerate(all_subs))
+        # Deviation variables
+        dev_P = LpVariable("dev_P", lowBound=0)
+        dev_C = LpVariable("dev_C", lowBound=0)
+        dev_F = LpVariable("dev_F", lowBound=0)
 
-        # Macro error
-        macro_error = (total_P - P_t) ** 2 + (total_C - C_t) ** 2 + (total_F - F_t) ** 2
+        # |x - target| via linear constraints
+        prob += total_P - P_t <= dev_P
+        prob += -(total_P - P_t) <= dev_P
+        prob += total_C - C_t <= dev_C
+        prob += -(total_C - C_t) <= dev_C
+        prob += total_F - F_t <= dev_F
+        prob += -(total_F - F_t) <= dev_F
 
-        # ---- Calorie distribution penalties ----
-        penalties = 0.0
-        if kcal_t > 0:
-            # kcal per meal
-            kcal_by_meal = {}
-            for meal in recipes_by_meal.keys():
-                kcal_by_meal[meal] = sum(
-                    combo[i] * s["macros"]["kcal"]
-                    for i, s in enumerate(all_subs) if s["meal"] == meal
-                )
+        # Kcal by meal_type
+        kcal_by_type: Dict[str, Any] = {}
+        for i, s in enumerate(all_subs):
+            meal_key = s["meal"]
+            meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
+            if not meal_type:
+                continue
+            if meal_type not in kcal_by_type:
+                kcal_by_type[meal_type] = servings[i] * s["macros"]["kcal"]
+            else:
+                kcal_by_type[meal_type] += servings[i] * s["macros"]["kcal"]
 
-            # Rule 1: Breakfast <= 30% of total kcal
-            if "breakfast" in kcal_by_meal:
-                limit_b = 0.3 * kcal_t
-                if kcal_by_meal["breakfast"] > limit_b:
-                    penalties += (kcal_by_meal["breakfast"] - limit_b) ** 2
+        # Apply constraints according to which meal types exist
+        if {"snack", "breakfast", "dinner", "lunch"} <= set(kcal_by_type.keys()):
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-            # Rule 2: Snack <= 20% of total kcal
-            if "snack" in kcal_by_meal:
-                limit_s = 0.2 * kcal_t
-                if kcal_by_meal["snack"] > limit_s:
-                    penalties += (kcal_by_meal["snack"] - limit_s) ** 2
+        if "snack" in kcal_by_type and "breakfast" not in kcal_by_type and "dinner" in kcal_by_type and "lunch" in kcal_by_type:
+            prob += kcal_by_type["snack"] <= (SNACK_MAX_PCT + 0.1) * kcal_t
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-            # Rule 3: Dinner ≈ Lunch (±20%)
-            if "dinner" in kcal_by_meal and "lunch" in kcal_by_meal:
-                d_k = kcal_by_meal["dinner"]
-                l_k = kcal_by_meal["lunch"]
-                bigger = max(d_k, l_k)
-                allowed_diff = 0.2 * bigger  # 20%
-                diff = abs(d_k - l_k)
-                if diff > allowed_diff:
-                    penalties += (diff - allowed_diff) ** 2
+        if "snack" not in kcal_by_type and "breakfast" not in kcal_by_type and "dinner" in kcal_by_type and "lunch" in kcal_by_type:
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-        total_error = macro_error + 0.01 * penalties
+        if "snack" in kcal_by_type and "breakfast" in kcal_by_type and "dinner" not in kcal_by_type and "lunch" in kcal_by_type:
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            prob += kcal_by_type["lunch"] <= NO_DINNER_YES_LUNCH_PCT * kcal_t
 
-        if total_error < best_error:
-            best_error = total_error
-            best_combo = combo
+        if "snack" in kcal_by_type and "breakfast" in kcal_by_type and "dinner" in kcal_by_type and "lunch" not in kcal_by_type:
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            prob += kcal_by_type["dinner"] <= NO_LUNCH_YES_DINNER_PCT * kcal_t
 
-    # ---- Build result for best combo ----
-    if best_combo is None:
-        # fallback
-        best_combo = [1] * len(all_subs)
+        # Kcal tolerance
+        prob += total_K >= (1 - tol) * kcal_t
+        prob += total_K <= (1 + tol) * kcal_t
 
-    # Daily totals for the chosen combo
-    day_totals = {"protein": 0.0, "carbs": 0.0, "fat": 0.0, "kcal": 0.0}
-    optimized = []
+        # Objective
+        prob += (
+            WEIGHT_PROTEIN * dev_P +
+            WEIGHT_CARBS * dev_C +
+            WEIGHT_FAT * dev_F
+        )
 
-    for i, s in enumerate(all_subs):
-        servings = int(best_combo[i])
-        macros = s["macros"]
+        # Solve
+        prob.solve(PULP_CBC_CMD(msg=False))
 
-        day_totals["protein"] += macros["protein"] * servings
-        day_totals["carbs"]   += macros["carbs"] * servings
-        day_totals["fat"]     += macros["fat"] * servings
-        day_totals["kcal"]    += macros["kcal"] * servings
+        if LpStatus[prob.status] == "Optimal":
+            day_totals = {
+                "protein": float(value(total_P)),
+                "carbs": float(value(total_C)),
+                "fat": float(value(total_F)),
+                "kcal": float(value(total_K)),
+                "tolerance_used": tol,
+            }
 
-        optimized.append({
-            "subrecipe_id": s["subrecipe_id"],
-            "name": s["name"],
-            "meal": s["meal"],
-            "servings": servings
-        })
+            optimized = []
+            for i, s in enumerate(all_subs):
+                servings_val = int(value(servings[i]))
+                meal_key = s["meal"]
+                meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
 
-    return optimized, float(best_error), day_totals
+                macros_per_serving = s["macros"]
+                optimized_macros = {
+                    "protein": macros_per_serving["protein"] * servings_val,
+                    "carbs": macros_per_serving["carbs"] * servings_val,
+                    "fat": macros_per_serving["fat"] * servings_val,
+                    "kcal": macros_per_serving["kcal"] * servings_val,
+                }
+
+                optimized.append({
+                    "subrecipe_id": s["subrecipe_id"],
+                    "name": s["name"],
+                    "meal_name": meal_key,     # will match meal_key in recipes_by_meal
+                    "meal_type": meal_type,
+                    "servings": servings_val,
+                    "macros": optimized_macros,
+                })
+
+            total_error = float(value(
+                WEIGHT_PROTEIN * dev_P +
+                WEIGHT_CARBS * dev_C +
+                WEIGHT_FAT * dev_F
+            ))
+
+            return optimized, total_error, day_totals
+
+    # No feasible solution
+    return [], None, {
+        "protein": 0,
+        "carbs": 0,
+        "fat": 0,
+        "kcal": 0,
+        "tolerance_used": None,
+        "error": "No feasible solution found within ±20% kcal tolerance",
+    }
