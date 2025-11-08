@@ -218,6 +218,20 @@ def generate_meal_plan():
                     "servings": sub["servings"],
                     "macros": sub.get("macros", {}),
                 })
+        # --- Aggregate macros per recipe (per meal_key) ---
+        macros_per_recipe = {}
+        for meal_key, sub_list in subs_by_meal.items():
+            total_protein = sum(sub["macros"].get("protein", 0) for sub in sub_list)
+            total_carbs = sum(sub["macros"].get("carbs", 0) for sub in sub_list)
+            total_fat = sum(sub["macros"].get("fat", 0) for sub in sub_list)
+            total_kcal = sum(sub["macros"].get("kcal", 0) for sub in sub_list)
+
+            macros_per_recipe[meal_key] = {
+                "protein": total_protein,
+                "carbs": total_carbs,
+                "fat": total_fat,
+                "kcal": total_kcal,
+            }
 
         # Build meals list (array) for this day
         meals_list = []
@@ -228,6 +242,7 @@ def generate_meal_plan():
                 "recipe_id": info["recipe_id"],
                 "recipe_name": info["recipe_name"],
                 "photo": info["photo"],
+                "macros": macros_per_recipe.get(meal_key, {}),
                 "subrecipes": subs_by_meal.get(meal_key, [])
             })
 
