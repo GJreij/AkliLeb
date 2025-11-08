@@ -33,13 +33,44 @@ def generate_meal_plan():
     end_date_str = data.get("end_date")
     include_weekends = data.get("include_weekends", False)
 
-    # Default mapping: key in UI -> meal_type in DB
-    meals_map = data.get("meals") or {
-        "breakfast": "breakfast",
-        "lunch": "lunch",
-        "dinner": "dinner",
-        "snack": "snack",
+    # --- Handle meals mapping safely and flexibly ---
+
+    raw_meals = data.get("meals")
+
+    # Allowed values that correspond to actual recipe fields (could_be_<meal_type>)
+    allowed_meal_types = {"breakfast", "lunch", "dinner", "snack"}
+
+    if raw_meals:
+        # Keep only entries that:
+        # 1. Have a non-empty value
+        # 2. That value is one of the allowed meal types
+        meals_map = {
+            key: value
+            for key, value in raw_meals.items()
+            if value and isinstance(value, str) and value in allowed_meal_types
+        }
+    else:
+        # Default to all standard meals if no "meals" provided
+        meals_map = {
+            "breakfast": "breakfast",
+            "lunch": "lunch",
+            "dinner": "dinner",
+            "snack": "snack",
+        }
+
+    # ✅ Special case: allow duplicate-type meals like "snack2"
+    # For example: "snack2": "snack" will be included and treated as a separate slot
+    extra_meals = {
+        key: value
+        for key, value in (raw_meals or {}).items()
+        if value and isinstance(value, str) and value in allowed_meal_types and key not in meals_map
     }
+    meals_map.update(extra_meals)
+
+    # 🚨 If the resulting map is empty, return a helpful message
+    if not meals_map:
+        return jsonify({"error": "At least one valid meal must be selected."}), 400
+
 
     # --- Basic validation ---
     if not user_id:
