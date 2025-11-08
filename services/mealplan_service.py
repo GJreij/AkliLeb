@@ -200,10 +200,10 @@ def optimize_subrecipes(
 
         if LpStatus[prob.status] == "Optimal":
             day_totals = {
-                "protein": float(value(total_P)),
-                "carbs": float(value(total_C)),
-                "fat": float(value(total_F)),
-                "kcal": float(value(total_K)),
+                "protein": int(round(value(total_P))),
+                "carbs": int(round(value(total_C))),
+                "fat": int(round(value(total_F))),
+                "kcal": int(round(value(total_K))),
                 "tolerance_used": tol,
             }
 
