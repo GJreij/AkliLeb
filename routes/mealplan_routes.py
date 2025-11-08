@@ -227,11 +227,11 @@ def generate_meal_plan():
             total_kcal = sum(sub["macros"].get("kcal", 0) for sub in sub_list)
 
             macros_per_recipe[meal_key] = {
-                "protein": total_protein,
-                "carbs": total_carbs,
-                "fat": total_fat,
-                "kcal": total_kcal,
-            }
+                "protein": int(round(total_protein)),
+                "carbs": int(round(total_carbs)),
+                "fat": int(round(total_fat)),
+                "kcal": int(round(total_kcal)),
+                    }
 
         # Build meals list (array) for this day
         meals_list = []
