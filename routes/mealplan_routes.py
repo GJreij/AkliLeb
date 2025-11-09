@@ -110,7 +110,7 @@ def generate_meal_plan():
     # --- 2) User preferences ---
     prefs_resp = (
         supabase.table("user_recipe_preferences")
-        .select("recipe_id, like, dislike")
+        .select("recipe_id, like, dislike, dont_include")
         .eq("user_id", user_id)
         .execute()
     )
@@ -121,12 +121,31 @@ def generate_meal_plan():
     for r in recipes:
         rid = r["id"]
         pref = user_prefs.get(rid, {})
+        # Skip recipes explicitly marked as "don't include"
+        if pref.get("dont_include"):
+            continue
         score = random.random()
         if pref.get("like"):
             score += 2
         if pref.get("dislike"):
             score -= 5
         scored_recipes.append((score, r))
+
+    for meal_key, meal_type in meals_map.items():
+        candidates_for_type = [
+            r for _, r in scored_recipes
+            if r.get(f"could_be_{meal_type}", False)
+        ]
+        if not candidates_for_type:
+            return jsonify({
+                "error": (
+                    f"No available recipes for meal type '{meal_type}'. "
+                    "All recipes for this type may have been excluded with 'don't include'. "
+                    "Please update your preferences or choose a different date range."
+                )
+            }), 400
+    if not scored_recipes:
+        return jsonify({"error": "No available recipes found after applying user preferences."}), 400
 
     scored_recipes.sort(key=lambda x: x[0], reverse=True)
 
