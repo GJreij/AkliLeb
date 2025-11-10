@@ -139,9 +139,9 @@ def generate_meal_plan():
         if not candidates_for_type:
             return jsonify({
                 "error": (
-                    f"No available recipes for meal type '{meal_type}'. "
-                    "All recipes for this type may have been excluded with 'don't include'. "
-                    "Please update your preferences or choose a different date range."
+                    f"We couldn’t find any available recipes for {meal_type}. "
+                    "Some of your preferences may have excluded all options for this meal. "
+                    "Please review your selections or try again with different dates."
                 )
             }), 400
     if not scored_recipes:
@@ -283,3 +283,27 @@ def generate_meal_plan():
         "daily_macro_target": target_with_kcal,
         "days": days,
     }), 200
+
+
+@mealplan_bp.route("/update_meal_plan", methods=["POST"])
+def update_meal_plan_endpoint():
+    """
+    Input:
+    {
+      "original_plan": {...},  # from /generate_meal_plan
+      "change_logs": [ {...}, {...} ]
+    }
+    Output:
+      Updated optimized meal plan JSON
+    """
+    data = request.get_json()
+    original_plan = data.get("original_plan")
+    logs = data.get("change_logs", [])
+
+    if not original_plan or not isinstance(logs, list):
+        return jsonify({"error": "Missing or invalid input data"}), 400
+
+    from services.mealplan_update_dynamic_service import update_meal_plan
+    updated = update_meal_plan(original_plan, logs)
+
+    return jsonify(updated), 200
