@@ -126,18 +126,20 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
         if day_change and day_change.get("deleted_day"):
             continue
 
-        # 2. Build meal set
         updated_meals = []
+        deleted_meals_for_day = set()
+        reduce_macros_pct = 0.0  # cumulative % reduction of total macros
+
         for meal in day["meals"]:
             meal_key = meal["meal_key"]
+            meal_type = meal["meal_type"]
             change = (day_change or {}).get(meal_key)
 
-            # --- keep as is ---
             if not change:
                 updated_meals.append(meal)
                 continue
 
-            # --- replaced recipe ---
+            # --- Replace recipe ---
             if change["action"] == "replace":
                 new_recipe_id = change["new_recipe_id"]
                 new_recipe = fetch_recipe_details(new_recipe_id)
@@ -155,17 +157,39 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
                 updated_meals.append(meal)
                 continue
 
-            # --- delete recipe ---
+            # --- Delete recipe ---
             if change["action"] == "delete":
                 include_macros = change.get("include_macros_in_rest", True)
+
                 if include_macros:
-                    # we’ll re-optimize later (so we just drop meal visually)
+                    # Drop visually but re-optimize to hit full target
+                    deleted_meals_for_day.add(meal_type)
                     continue
                 else:
-                    # user eats outside → drop completely
+                    # Eating out → reduce daily macros by a fixed percentage
+                    deleted_meals_for_day.add(meal_type)
+                    if meal_type == "breakfast":
+                        reduce_macros_pct += 0.30
+                    elif meal_type == "snack":
+                        reduce_macros_pct += 0.20
+                    elif meal_type in ["lunch", "dinner"]:
+                        reduce_macros_pct += 0.40
                     continue
 
-        # 3. Build recipes_by_meal for optimizer (only non-deleted meals)
+        # 2. If all meals were deleted → remove the entire day
+        if len(deleted_meals_for_day) >= 4:
+            continue
+
+        # 3. Adjust macro target based on reduced percentage
+        adjusted_target = copy.deepcopy(daily_target)
+        if reduce_macros_pct > 0:
+            for key in ["protein_g", "carbs_g", "fat_g"]:
+                if adjusted_target.get(key):
+                    adjusted_target[key] = round(
+                        adjusted_target[key] * (1 - min(reduce_macros_pct, 1.0)), 2
+                    )
+
+        # 4. Prepare meals for re-optimization
         recipes_by_meal = {
             m["meal_key"]: {
                 "recipe_id": m["recipe_id"],
@@ -176,14 +200,13 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
             for m in updated_meals
         }
 
-        # If everything was deleted, skip optimization
         if not recipes_by_meal:
             continue
 
-        # 4. Re-optimize macros for this day using your existing optimizer
-        optimized_subs, loss, day_totals = optimize_subrecipes(recipes_by_meal, daily_target)
+        # 5. Re-optimize macros using existing optimizer
+        optimized_subs, loss, day_totals = optimize_subrecipes(recipes_by_meal, adjusted_target)
 
-        # --- Group subrecipes per meal for display ---
+        # --- Group optimized subrecipes ---
         subs_by_meal = {k: [] for k in recipes_by_meal.keys()}
         for sub in optimized_subs:
             meal_name = sub.get("meal_name")
@@ -195,7 +218,7 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
                     "macros": sub["macros"],
                 })
 
-        # --- Aggregate macros per meal ---
+        # --- Recalculate meal macros ---
         for meal in updated_meals:
             sub_list = subs_by_meal.get(meal["meal_key"], [])
             if sub_list:
@@ -211,7 +234,7 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
                 }
                 meal["subrecipes"] = sub_list
 
-        # 5. Construct updated day
+        # 6. Construct updated day
         updated_day = {
             "date": date,
             "weekday": day["weekday"],
@@ -225,6 +248,7 @@ def apply_changes_and_optimize(original_plan: Dict[str, Any], changes: Dict[str,
 
     updated_plan["days"] = new_days
     return updated_plan
+
 
 
 # ------------------------------------------------------------------
