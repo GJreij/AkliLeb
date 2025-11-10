@@ -1,12 +1,14 @@
 from flask import Flask
 from routes.macros_routes import macros_bp
 from routes.mealplan_routes import mealplan_bp
+from routes.checkout_summary import checkout_bp
 import os
 app = Flask(__name__)
 
 # Register blueprints
 app.register_blueprint(macros_bp)
 app.register_blueprint(mealplan_bp)
+app.register_blueprint(checkout_bp)
 
 
 @app.route("/")
