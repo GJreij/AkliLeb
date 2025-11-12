@@ -2,18 +2,20 @@ from flask import Flask
 from routes.macros_routes import macros_bp
 from routes.mealplan_routes import mealplan_bp
 from routes.checkout_summary import checkout_bp
+from routes.confirm_order import confirm_order_bp
 import os
 app = Flask(__name__)
 
 # Register blueprints
 app.register_blueprint(macros_bp)
+app.register_blueprint(confirm_order_bp)
 app.register_blueprint(mealplan_bp)
 app.register_blueprint(checkout_bp)
 
 
 @app.route("/")
 def home():
-    return "Hello from Flask API on Heroku!"
+    return "Hello from Flask API on Heroku!!"
 
 
 if __name__ == "__main__":
