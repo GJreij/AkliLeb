@@ -236,21 +236,7 @@ class OrderService:
             totals = day.get("totals") or {}
             delivery_id = deliveries_map.get(date_str)
 
-            # daily macros
-            self.sb.table("daily_macro_order").insert({
-                "user_id": user_id,
-                "order_date": datetime.utcnow().date().isoformat(),  # if you store order_date; else remove
-                "for_date": date_str,
-                "protein_ordered": totals.get("protein"),
-                "carbs_ordered": totals.get("carbs"),
-                "fat_ordered": totals.get("fat"),
-                "saturated_fat_ordered": totals.get("saturated") if "saturated" in totals else None,
-                "fiber_ordered": totals.get("fiber"),
-                "sugar_ordered": totals.get("sugar"),
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-
-            # meal_plan_day with status + delivery link
+            # 1️⃣ Create meal_plan_day first
             day_ins = self.sb.table("meal_plan_day").insert({
                 "meal_plan_id": plan_id,
                 "date": date_str,
@@ -260,14 +246,36 @@ class OrderService:
             }).execute()
             meal_plan_day_id = day_ins.data[0]["id"]
 
-            # back-link on deliveries → meal_plan_day_id
+            # 2️⃣ Create daily_macro_order (link to meal_plan_day_id + kcal_ordered)
+            daily_macro_ins = self.sb.table("daily_macro_order").insert({
+                "user_id": user_id,
+                "meal_plan_day_id": meal_plan_day_id,
+                "for_date": date_str,
+                "protein_ordered": totals.get("protein"),
+                "carbs_ordered": totals.get("carbs"),
+                "fat_ordered": totals.get("fat"),
+                "kcal_ordered": totals.get("kcal"),  # NEW FIELD
+                "saturated_fat_ordered": totals.get("saturated") if "saturated" in totals else None,
+                "fiber_ordered": totals.get("fiber"),
+                "sugar_ordered": totals.get("sugar"),
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+            daily_macro_order_id = daily_macro_ins.data[0]["id"]
+
+            # 3️⃣ Update meal_plan_day to include daily_macro_order_id
+            self.sb.table("meal_plan_day").update({
+                "daily_macro_order_id": daily_macro_order_id,
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", meal_plan_day_id).execute()
+
+            # 4️⃣ Back-link on deliveries
             if delivery_id:
                 self.sb.table("deliveries").update({
                     "meal_plan_day_id": meal_plan_day_id,
                     "updated_at": datetime.utcnow().isoformat()
                 }).eq("id", delivery_id).execute()
 
-            # recipes + subrecipes
+            # 5️⃣ Recipes + subrecipes
             for meal in (day.get("meals") or []):
                 rec_ins = self.sb.table("meal_plan_day_recipe").insert({
                     "meal_plan_day_id": meal_plan_day_id,
@@ -282,7 +290,6 @@ class OrderService:
                         "meal_plan_day_recipe_id": mpdr_id,
                         "subrecipe_id": sub["subrecipe_id"],
                         "recipe_subrecipe_serving_calculated": sub.get("servings"),
-                        # optional calculated macros if you keep them:
                         "kcal_calculated": (sub.get("macros") or {}).get("kcal"),
                         "protein_calculated": (sub.get("macros") or {}).get("protein"),
                         "carbs_calculated": (sub.get("macros") or {}).get("carbs"),
@@ -290,15 +297,40 @@ class OrderService:
                         "created_at": datetime.utcnow().isoformat()
                     }).execute()
 
+
     def _create_payment_record(self, ordered_user_id, partner_id, checkout_summary):
-        total_price = (checkout_summary.get("price_breakdown") or {}).get("total_price", 0)
-        self.sb.table("payment").insert({
-            "ordered_user_id": ordered_user_id,
-            "partner_at_order": partner_id,  # can be None if no partner
-            "amount": total_price,
-            "status": "pending",
-            "provider": None,
-            "provider_payment_id": None,
-            "currency": None,
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
+        """
+        Create one payment per delivery day, linked to meal_plan_day.
+        """
+        price_breakdown = checkout_summary.get("price_breakdown") or {}
+        daily_breakdown = price_breakdown.get("daily_breakdown") or []
+
+        for day_data in daily_breakdown:
+            date_str = day_data.get("date")
+            day_total = day_data.get("total_price", 0)
+
+            # find corresponding meal_plan_day_id
+            meal_plan_day_res = (
+                self.sb.table("meal_plan_day")
+                .select("id")
+                .eq("date", date_str)
+                .eq("user_id", ordered_user_id)  # if you have this column
+                .execute()
+            )
+            meal_plan_day_id = (
+                meal_plan_day_res.data[0]["id"]
+                if meal_plan_day_res.data else None
+            )
+
+            self.sb.table("payment").insert({
+                "ordered_user_id": ordered_user_id,
+                "partner_at_order": partner_id,
+                "amount": day_total,
+                "status": "pending",
+                "provider": None,
+                "provider_payment_id": None,
+                "currency": "EUR",
+                "meal_plan_day_id": meal_plan_day_id,  # NEW LINK
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+
