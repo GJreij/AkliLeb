@@ -218,10 +218,10 @@ class OrderService:
             self.sb.table("daily_macro_order").insert({
                 "user_id": user_id,
                 "for_date": date_str,
-                "protein_g": totals.get("protein"),
-                "carbs_g": totals.get("carbs"),
-                "fat_g": totals.get("fat"),
-                "kcal": totals.get("kcal"),
+                "protein_g": totals.get("protein_ordered"),
+                "carbs_g": totals.get("carbs_ordered"),
+                "fat_g": totals.get("fat_ordered"),
+                "kcal": totals.get("kcal_ordered"),
                 "created_at": datetime.utcnow().isoformat()
             }).execute()
 
