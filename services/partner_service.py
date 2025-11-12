@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 from utils.supabase_client import supabase
 
 class PartnerService:
@@ -8,31 +7,31 @@ class PartnerService:
 
     def get_partner_shares(self, partner_id, this_month=False):
         """
-        Returns a summary of partner's payments:
-          - shares_acquired: sum(amount) where status='paid'
-          - shares_pending: sum(amount) where status='pending'
-          - start_date: start of month or first payment ever
-          - end_date: latest expected date for pending payments
+        Returns a summary of a partner's earnings (7% share).
+
+        Steps:
+          - Fetch all payments linked to this partner.
+          - Join each payment to its meal_plan_day to get the 'date'.
+          - If this_month=True, only include current month dates.
+          - Calculate:
+              * shares_acquired (7% of 'paid')
+              * shares_pending (7% of 'pending')
+              * start_date (earliest meal_plan_day.date)
+              * end_date (latest meal_plan_day.date for pending)
         """
         now = datetime.utcnow()
+        month_start = datetime(now.year, now.month, 1)
+        next_month = datetime(now.year, now.month + 1, 1) if now.month < 12 else datetime(now.year + 1, 1, 1)
+        month_end = next_month - timedelta(days=1)
 
-        # ---------- 1️⃣ Determine date range ----------
+        # --- Step 1: Fetch partner payments
+        query = (
+            self.sb.table("payment")
+            .select("id, amount, status, meal_plan_day_id, created_at")
+            .eq("partner_at_order", partner_id)
+        )
         if this_month:
-            month_start = datetime(now.year, now.month, 1)
-            next_month = month_start + relativedelta(months=1)
-            month_end = next_month - timedelta(days=1)
-            date_filter = {
-                "gte": month_start.isoformat(),
-                "lte": month_end.isoformat()
-            }
-        else:
-            month_start = None
-            date_filter = None
-
-        # ---------- 2️⃣ Query payments ----------
-        query = self.sb.table("payment").select("*").eq("partner_at_order", partner_id)
-        if date_filter:
-            query = query.gte("created_at", date_filter["gte"]).lte("created_at", date_filter["lte"])
+            query = query.gte("created_at", month_start.isoformat()).lte("created_at", month_end.isoformat())
 
         res = query.execute()
         payments = res.data or []
@@ -47,22 +46,48 @@ class PartnerService:
                 "message": "No payments found for this partner."
             }
 
-        # ---------- 3️⃣ Aggregate sums ----------
-        shares_acquired = sum(p["amount"] for p in payments if p.get("status") == "paid")
-        shares_pending = sum(p["amount"] for p in payments if p.get("status") == "pending")
+        # --- Step 2: Collect all meal_plan_day_id
+        day_ids = [p["meal_plan_day_id"] for p in payments if p.get("meal_plan_day_id")]
 
-        # ---------- 4️⃣ Start / end dates ----------
-        start_date = (
-            month_start.date().isoformat()
-            if this_month
-            else min(datetime.fromisoformat(p["created_at"]).date() for p in payments)
+        # --- Step 3: Fetch meal_plan_day dates
+        days_res = (
+            self.sb.table("meal_plan_day")
+            .select("id, date")
+            .in_("id", day_ids)
+            .execute()
         )
+        day_map = {d["id"]: d["date"] for d in (days_res.data or [])}
 
-        # end_date = latest expected payment date for pending shares
-        pending_dates = [
-            datetime.fromisoformat(p["created_at"]).date() for p in payments if p.get("status") == "pending"
-        ]
-        end_date = max(pending_dates).isoformat() if pending_dates else None
+        # --- Step 4: Compute sums and dates
+        shares_acquired = 0.0
+        shares_pending = 0.0
+        paid_dates = []
+        pending_dates = []
+
+        for p in payments:
+            day_date = day_map.get(p.get("meal_plan_day_id"))
+            if not day_date:
+                continue
+
+            # restrict to this month if requested
+            if this_month:
+                d = datetime.fromisoformat(day_date)
+                if d < month_start or d > month_end:
+                    continue
+
+            share = (p.get("amount") or 0) * 0.07  # 7% share
+            if p.get("status") == "paid":
+                shares_acquired += share
+                paid_dates.append(day_date)
+            elif p.get("status") == "pending":
+                shares_pending += share
+                pending_dates.append(day_date)
+
+        # --- Step 5: Dates
+        all_dates = paid_dates + pending_dates
+        start_date = min(all_dates) if all_dates else None
+        # end_date: last date among pending (if any), else last paid
+        end_date = max(pending_dates) if pending_dates else (max(all_dates) if all_dates else None)
 
         return {
             "partner_id": partner_id,
