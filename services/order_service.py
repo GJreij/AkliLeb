@@ -106,14 +106,36 @@ class OrderService:
             }).execute()
 
     def _fetch_user_info(self, user_id):
-        """Get address and partner info."""
-        res = (
+        """Fetch user delivery address and find linked partner if any."""
+        # Fetch delivery address from user
+        user_res = (
             self.supabase.table("user")
-            .select("delivery_address, partner_id")
+            .select("delivery_address")
             .eq("id", user_id)
             .execute()
         )
-        return res.data[0] if res.data else None
+        if not user_res.data:
+            return None
+
+        user_info = user_res.data[0]
+        delivery_address = user_info.get("delivery_address")
+
+        # Look up partner in partner_client_link
+        partner_res = (
+            self.supabase.table("partner_client_link")
+            .select("partner_id")
+            .eq("client_id", user_id)
+            .eq("status", "active")  # optional filter if you use it
+            .execute()
+        )
+
+        partner_id = partner_res.data[0]["partner_id"] if partner_res.data else None
+
+        return {
+            "delivery_address": delivery_address,
+            "partner_id": partner_id
+        }
+
 
     def _create_deliveries(self, user_id, selected_days, delivery_slot_id, delivery_address):
         """Create deliveries for each ordered day and increment slot count."""
