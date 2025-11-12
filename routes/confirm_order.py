@@ -16,7 +16,7 @@ def confirm_order():
         checkout_summary = data.get("checkout_summary") or {}
         delivery_slot_id = data.get("delivery_slot_id")
 
-        # basic validation
+        # minimal validation
         if not user_id or not meal_plan or not checkout_summary or not delivery_slot_id:
             return jsonify({"error": "Missing required fields"}), 400
 
@@ -29,4 +29,5 @@ def confirm_order():
         return jsonify(result), status
 
     except Exception as e:
+        # last-resort safeguard
         return jsonify({"error": str(e)}), 500
