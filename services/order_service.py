@@ -313,8 +313,7 @@ class OrderService:
             meal_plan_day_res = (
                 self.sb.table("meal_plan_day")
                 .select("id")
-                .eq("date", date_str)
-                .eq("user_id", ordered_user_id)  # if you have this column
+                .eq("date", date_str)  # if you have this column
                 .execute()
             )
             meal_plan_day_id = (
