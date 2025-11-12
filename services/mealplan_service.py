@@ -142,7 +142,7 @@ def optimize_subrecipes(
         prob += total_F - F_t <= dev_F
         prob += -(total_F - F_t) <= dev_F
 
-        # Kcal by meal_type
+        # Kcal by meal_type for constraints
         kcal_by_type: Dict[str, Any] = {}
         for i, s in enumerate(all_subs):
             meal_key = s["meal"]
