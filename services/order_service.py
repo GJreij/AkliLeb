@@ -295,7 +295,8 @@ class OrderService:
                         "protein_calculated": (sub.get("macros") or {}).get("protein"),
                         "carbs_calculated": (sub.get("macros") or {}).get("carbs"),
                         "fat_calculated": (sub.get("macros") or {}).get("fat"),
-                        "status": "pending",
+                        "cooking_status": "pending",
+                        "portioning_status": "pending",
                         "created_at": datetime.utcnow().isoformat()
                     }).execute()
 
