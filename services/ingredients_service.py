@@ -92,6 +92,9 @@ def get_ingredients_to_buy(start_date, end_date, recipe=None, client=None, deliv
     # ---------------------------------------------------------
     # 5. Multiply servings × ingredient quantities
     # ---------------------------------------------------------
+    # ---------------------------------------------
+    # 5. Multiply servings × ingredient quantities
+    # ---------------------------------------------
     totals = {}
 
     for s in servings:
@@ -104,10 +107,7 @@ def get_ingredients_to_buy(start_date, end_date, recipe=None, client=None, deliv
         for ing in ingred_map[sub_id]:
             ing_id = ing["ingredient_id"]
 
-            # quantity per recipe * number of servings
             base_qty = ing["quantity"] * servings_count
-
-            # convert serving → unit (rice: 1 serving = 100g)
             serving_per_unit = ing["ingredient"]["serving_per_unit"] or 1
 
             final_qty = base_qty * serving_per_unit
@@ -122,4 +122,11 @@ def get_ingredients_to_buy(start_date, end_date, recipe=None, client=None, deliv
 
             totals[ing_id]["total_quantity"] += final_qty
 
-    return list(totals.values())
+    # ---------------------------------------------
+    # 6. Sort ingredients alphabetically
+    # ---------------------------------------------
+    result = list(totals.values())
+    result.sort(key=lambda x: x["name"].lower())
+
+    return result
+
