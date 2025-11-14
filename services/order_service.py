@@ -281,6 +281,7 @@ class OrderService:
                     "meal_plan_day_id": meal_plan_day_id,
                     "recipe_id": meal["recipe_id"],
                     "meal_type": meal.get("meal_type"),
+                    "status": "pending",
                     "created_at": datetime.utcnow().isoformat()
                 }).execute()
                 mpdr_id = rec_ins.data[0]["id"]
@@ -294,6 +295,7 @@ class OrderService:
                         "protein_calculated": (sub.get("macros") or {}).get("protein"),
                         "carbs_calculated": (sub.get("macros") or {}).get("carbs"),
                         "fat_calculated": (sub.get("macros") or {}).get("fat"),
+                        "status": "pending",
                         "created_at": datetime.utcnow().isoformat()
                     }).execute()
 
