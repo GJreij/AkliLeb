@@ -15,6 +15,17 @@ def ingredients_to_buy():
     recipe = request.args.get("recipe")
     client = request.args.get("client")
     delivery_slot = request.args.get("delivery_slot")
+    # Treat "", "null", "None" as no filter
+    def normalize(value):
+        if value is None:
+            return None
+        if value.strip() == "" or value.lower() in ["null", "none"]:
+            return None
+        return value
+
+    recipe = normalize(recipe)
+    client = normalize(client)
+    delivery_slot = normalize(delivery_slot)
 
     try:
         result = get_ingredients_to_buy(
