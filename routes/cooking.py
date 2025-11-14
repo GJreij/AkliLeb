@@ -1,3 +1,8 @@
+from flask import Blueprint, request, jsonify
+from services.cooking_service import get_cooking_overview
+
+cooking_bp = Blueprint('cooking', __name__)
+
 @cooking_bp.route("/cooking/overview", methods=["POST"])
 def cooking_overview():
     data = request.json or {}
