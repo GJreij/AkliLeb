@@ -6,6 +6,7 @@ from routes.confirm_order import confirm_order_bp
 from routes.partners_routes import partner_bp
 from routes.cooking import cooking_bp
 from routes.ingredients import ingredients_bp
+from routes.portioning import portioning_bp
 import os
 app = Flask(__name__)
 
@@ -17,6 +18,7 @@ app.register_blueprint(checkout_bp)
 app.register_blueprint(partner_bp)
 app.register_blueprint(ingredients_bp)
 app.register_blueprint(cooking_bp)
+app.register_blueprint(portioning_bp)
 
 
 @app.route("/")
