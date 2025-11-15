@@ -1,222 +1,229 @@
 # services/portioning_service.py
 
-from typing import Any, Dict, List, Optional
-from sqlalchemy import text
-from utils.supabase_client import engine  # adapt if needed
+from utils.supabase_client import supabase
 
 
-def _sanitize_filter(value: Optional[Any]) -> Optional[Any]:
-    """Convert "", " ", "null", "Null", "NULL" -> None."""
+def normalize_filter_value(value):
     if value is None:
         return None
     if isinstance(value, str):
-        v = value.strip()
-        if v == "" or v.lower() == "null":
+        if value.strip() in ("", "null", "Null", "NULL"):
             return None
-        return v
     return value
 
 
-def _build_in_clause(column_name: str, values: List[Any], param_prefix: str = "p"):
-    if not values:
-        raise ValueError("Values list for IN clause cannot be empty")
+def parse_int_list(raw_value, field_name):
+    if raw_value is None:
+        raise ValueError(f"{field_name} is required")
 
-    placeholders = []
-    params = {}
-    for idx, val in enumerate(values):
-        key = f"{param_prefix}{idx}"
-        placeholders.append(f":{key}")
-        params[key] = val
+    if isinstance(raw_value, str):
+        parts = [p.strip() for p in raw_value.split(",") if p.strip() != ""]
+        try:
+            return [int(p) for p in parts]
+        except ValueError:
+            raise ValueError(f"{field_name} must be a comma-separated list of integers")
 
-    clause = f"{column_name} IN ({', '.join(placeholders)})"
-    return clause, params
+    if isinstance(raw_value, int):
+        return [raw_value]
+
+    if isinstance(raw_value, (list, tuple)):
+        out = []
+        for x in raw_value:
+            try:
+                out.append(int(x))
+            except (TypeError, ValueError):
+                raise ValueError(f"{field_name} contains non-integer")
+        return out
+
+    raise ValueError(f"Unsupported format for {field_name}")
 
 
-def get_portioning_view_for_serving_ids(serving_ids: List[int]) -> Dict[str, Any]:
-    """
-    Core function used by both pages (cooking + portioning).
-    """
-    if not serving_ids:
-        return {
-            "clients": [],
-            "selection_stats": {"total_servings": 0, "ingredients": []},
+def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_status="completed"):
+
+    # --- 1. Fetch servings ---
+    servings_res = (
+        supabase.table("meal_plan_day_recipe_serving")
+        .select(
+            "id, meal_plan_day_recipe_id, subrecipe_id, "
+            "recipe_subrecipe_serving_calculated, weight_after_cooking, cooking_status"
+        )
+        .eq("subrecipe_id", subrecipe_id)
+        .in_("meal_plan_day_recipe_id", meal_plan_day_recipe_ids)
+        .eq("cooking_status", cooking_status)
+        .execute()
+    )
+    servings = servings_res.data or []
+
+    if not servings:
+        return None, "No servings found"
+
+    # Make sure subrecipe appears in *all* input meal_plan_day_recipe_ids
+    found_ids = {row["meal_plan_day_recipe_id"] for row in servings}
+    expected_ids = set(meal_plan_day_recipe_ids)
+
+    if found_ids != expected_ids:
+        missing = list(expected_ids - found_ids)
+        extra = list(found_ids - expected_ids)
+        return None, {
+            "error": "Subrecipe missing in some MPDRs",
+            "missing": missing,
+            "extra_found": extra
         }
 
-    in_clause, in_params = _build_in_clause("mprs.id", serving_ids, param_prefix="sid")
+    total_subrecipe_servings = sum(
+        row.get("recipe_subrecipe_serving_calculated") or 0 for row in servings
+    )
 
-    # --- Per-client info ---
-    client_sql = f"""
-        SELECT
-            mprs.id AS meal_plan_day_recipe_serving_id,
-            mprs.recipe_subrecipe_serving_calculated AS servings,
-            mprs.weight_after_cooking,
-            COALESCE(d.delivery_date, mpd.date) AS delivery_date,
-            ds.id AS delivery_slot_id,
-            ds.start_time,
-            ds.end_time,
-            u.first_name,
-            u.last_name
-        FROM meal_plan_day_recipe_serving mprs
-        JOIN meal_plan_day_recipe mpr
-            ON mprs.meal_plan_day_recipe_id = mpr.id
-        JOIN meal_plan_day mpd
-            ON mpr.meal_plan_day_id = mpd.id
-        LEFT JOIN deliveries d
-            ON mpd.delivery_id = d.id
-        LEFT JOIN delivery_slots ds
-            ON d.delivery_slot_id = ds.id
-        JOIN meal_plan mp
-            ON mpd.meal_plan_id = mp.id
-        JOIN "user" u
-            ON mp.user_id = u.id
-        WHERE {in_clause}
-        ORDER BY delivery_date, ds.start_time, u.last_name, u.first_name
-    """
+    # --- 2. meal_plan_day_recipe → meal_plan_day_id ---
+    mpdr_res = (
+        supabase.table("meal_plan_day_recipe")
+        .select("id, meal_plan_day_id")
+        .in_("id", list(found_ids))
+        .execute()
+    )
+    mpdr_rows = mpdr_res.data or []
+    mpdr_by_id = {row["id"]: row for row in mpdr_rows}
 
-    # --- Ingredient aggregation ---
-    ingredients_sql = f"""
-        SELECT
-            i.id AS ingredient_id,
-            i.name,
-            i.unit,
-            SUM(
-                COALESCE(mprs.recipe_subrecipe_serving_calculated, 0)
-                * COALESCE(si.quantity, 0)
-                * COALESCE(i.serving_per_unit, 1)
-            ) AS total_quantity
-        FROM meal_plan_day_recipe_serving mprs
-        JOIN subrec_ingred si
-            ON mprs.subrecipe_id = si.subrecipe_id
-        JOIN ingredient i
-            ON si.ingredient_id = i.id
-        WHERE {in_clause}
-        GROUP BY i.id, i.name, i.unit
-        ORDER BY i.name
-    """
+    mpd_ids = {
+        row["meal_plan_day_id"]
+        for row in mpdr_rows
+        if row.get("meal_plan_day_id") is not None
+    }
 
-    # --- Total servings ---
-    total_servings_sql = f"""
-        SELECT SUM(COALESCE(recipe_subrecipe_serving_calculated, 0)) AS total_servings
-        FROM meal_plan_day_recipe_serving
-        WHERE {in_clause}
-    """
+    # --- 3. meal_plan_day ---
+    mpd_res = (
+        supabase.table("meal_plan_day")
+        .select("id, date, delivery_id")
+        .in_("id", list(mpd_ids))
+        .execute()
+    )
+    mpd_by_id = {row["id"]: row for row in (mpd_res.data or [])}
 
-    with engine.connect() as conn:
-        client_rows = conn.execute(text(client_sql), in_params).mappings().all()
-        ingredient_rows = conn.execute(text(ingredients_sql), in_params).mappings().all()
-        total_row = conn.execute(text(total_servings_sql), in_params).mappings().first()
+    # --- 4. deliveries ---
+    delivery_ids = {
+        row["delivery_id"]
+        for row in mpd_by_id.values()
+        if row.get("delivery_id")
+    }
+    deliveries_by_id = {}
+    if delivery_ids:
+        deliv_res = (
+            supabase.table("deliveries")
+            .select("id, delivery_date, delivery_slot_id, user_id")
+            .in_("id", list(delivery_ids))
+            .execute()
+        )
+        deliveries_by_id = {r["id"]: r for r in (deliv_res.data or [])}
 
-    total_servings = float(total_row["total_servings"] or 0)
+    # --- 5. users ---
+    user_ids = {
+        d["user_id"] for d in deliveries_by_id.values() if d.get("user_id")
+    }
+    users_by_id = {}
+    if user_ids:
+        users_res = (
+            supabase.table("user")
+            .select("id, name, last_name")
+            .in_("id", list(user_ids))
+            .execute()
+        )
+        users_by_id = {u["id"]: u for u in (users_res.data or [])}
 
+    # --- 6. delivery slots ---
+    slot_ids = {
+        d["delivery_slot_id"] for d in deliveries_by_id.values() if d.get("delivery_slot_id")
+    }
+    slots_by_id = {}
+    if slot_ids:
+        slots_res = (
+            supabase.table("delivery_slots")
+            .select("id, start_time, end_time")
+            .in_("id", list(slot_ids))
+            .execute()
+        )
+        slots_by_id = {s["id"]: s for s in (slots_res.data or [])}
+
+    # --- 7. Subrecipe info ---
+    subrecipe_res = (
+        supabase.table("subrecipe")
+        .select("*")
+        .eq("id", subrecipe_id)
+        .execute()
+    )
+    if not subrecipe_res.data:
+        return None, f"Subrecipe {subrecipe_id} not found"
+
+    subrecipe_info = subrecipe_res.data[0]
+
+    # --- 8. Subrecipe ingredients ---
+    sub_ingred_res = (
+        supabase.table("subrec_ingred")
+        .select("id, subrecipe_id, ingredient_id, quantity, optional")
+        .eq("subrecipe_id", subrecipe_id)
+        .execute()
+    )
+    sub_ingred = sub_ingred_res.data or []
+
+    ingredient_ids = [r["ingredient_id"] for r in sub_ingred if r.get("ingredient_id")]
+    ingredients_by_id = {}
+    if ingredient_ids:
+        ing_res = (
+            supabase.table("ingredient")
+            .select("id, name, unit, serving_per_unit")
+            .in_("id", ingredient_ids)
+            .execute()
+        )
+        ingredients_by_id = {i["id"]: i for i in (ing_res.data or [])}
+
+    # --- Build result lines per client ---
     clients = []
-    for r in client_rows:
+    for r in servings:
+        mpdr = mpdr_by_id.get(r["meal_plan_day_recipe_id"])
+        mpd = mpd_by_id.get(mpdr["meal_plan_day_id"])
+        deliv = deliveries_by_id.get(mpd.get("delivery_id"))
+        user = users_by_id.get(deliv.get("user_id")) if deliv else None
+        slot = slots_by_id.get(deliv.get("delivery_slot_id")) if deliv else None
+
         clients.append({
-            "meal_plan_day_recipe_serving_id": r["meal_plan_day_recipe_serving_id"],
-            "delivery_date": r["delivery_date"].isoformat() if r["delivery_date"] else None,
-            "delivery_slot": {
-                "id": r["delivery_slot_id"],
-                "start_time": str(r["start_time"]) if r["start_time"] else None,
-                "end_time": str(r["end_time"]) if r["end_time"] else None,
-            },
-            "client_first_name": r["first_name"],
-            "client_last_name": r["last_name"],
-            "servings": float(r["servings"] or 0),
-            "has_weight_after_cooking": r["weight_after_cooking"] is not None,
-            "weight_after_cooking": (
-                float(r["weight_after_cooking"])
-                if r["weight_after_cooking"] is not None
-                else None
-            ),
+            "meal_plan_day_recipe_serving_id": r["id"],
+            "delivery_date": deliv.get("delivery_date") if deliv else None,
+            "delivery_slot": slot,
+            "client": user,
+            "servings_for_client": r.get("recipe_subrecipe_serving_calculated"),
+            "weight_after_cooking": r.get("weight_after_cooking"),
+            "has_weight_after_cooking": r.get("weight_after_cooking") is not None
         })
 
-    ingredients = [
-        {
-            "ingredient_id": r["ingredient_id"],
-            "name": r["name"],
-            "unit": r["unit"],
-            "total_quantity": float(r["total_quantity"] or 0),
-        }
-        for r in ingredient_rows
-    ]
+    # --- Ingredient summary ---
+    ingredients_summary = []
+    for rel in sub_ingred:
+        ing = ingredients_by_id.get(rel["ingredient_id"])
+        if not ing:
+            continue
 
+        qty = rel.get("quantity") or 0
+        spu = ing.get("serving_per_unit") or 0
+
+        total_servings_equivalent = total_subrecipe_servings * qty * spu
+        total_units = total_subrecipe_servings * qty
+
+        ingredients_summary.append({
+            "ingredient_id": ing["id"],
+            "name": ing.get("name"),
+            "unit": ing.get("unit"),
+            "quantity_per_subrecipe": qty,
+            "serving_per_unit": spu,
+            "total_units_for_batch": total_units,
+            "total_servings_equivalent": total_servings_equivalent,
+            "optional": rel.get("optional")
+        })
+
+    # Final response dictionary
     return {
-        "clients": clients,
-        "selection_stats": {
-            "total_servings": total_servings,
-            "ingredients": ingredients,
+        "subrecipe": subrecipe_info,
+        "summary": {
+            "total_subrecipe_servings_for_batch": total_subrecipe_servings,
+            "ingredients": ingredients_summary
         },
-    }
-
-
-def get_portioning_view_by_filters(
-    *,
-    start_date: str,
-    end_date: str,
-    recipe_id: Optional[int] = None,
-    delivery_slot_id: Optional[int] = None,
-    subrecipe_id: Optional[int] = None,
-    cooking_status: Optional[str] = None,
-    portioning_status: Optional[str] = None,
-) -> Dict[str, Any]:
-
-    recipe_id = _sanitize_filter(recipe_id)
-    delivery_slot_id = _sanitize_filter(delivery_slot_id)
-    subrecipe_id = _sanitize_filter(subrecipe_id)
-    cooking_status = _sanitize_filter(cooking_status)
-    portioning_status = _sanitize_filter(portioning_status)
-
-    # Default cooking_status
-    if cooking_status is None:
-        cooking_status = "completed"
-
-    clauses = [
-        "mpd.date >= :start_date",
-        "mpd.date <= :end_date",
-        "COALESCE(mprs.cooking_status, '') = :cooking_status",
-    ]
-    params = {
-        "start_date": start_date,
-        "end_date": end_date,
-        "cooking_status": cooking_status,
-    }
-
-    if recipe_id is not None:
-        clauses.append("mpr.recipe_id = :recipe_id")
-        params["recipe_id"] = recipe_id
-
-    if delivery_slot_id is not None:
-        clauses.append("d.delivery_slot_id = :delivery_slot_id")
-        params["delivery_slot_id"] = delivery_slot_id
-
-    if subrecipe_id is not None:
-        clauses.append("mprs.subrecipe_id = :subrecipe_id")
-        params["subrecipe_id"] = subrecipe_id
-
-    if portioning_status is not None:
-        clauses.append("COALESCE(mprs.portioning_status, '') = :portioning_status")
-        params["portioning_status"] = portioning_status
-
-    where_sql = " AND ".join(clauses)
-
-    serving_ids_sql = f"""
-        SELECT mprs.id AS id
-        FROM meal_plan_day_recipe_serving mprs
-        JOIN meal_plan_day_recipe mpr
-            ON mprs.meal_plan_day_recipe_id = mpr.id
-        JOIN meal_plan_day mpd
-            ON mpr.meal_plan_day_id = mpd.id
-        LEFT JOIN deliveries d
-            ON mpd.delivery_id = d.id
-        WHERE {where_sql}
-        ORDER BY mpd.date
-    """
-
-    with engine.connect() as conn:
-        rows = conn.execute(text(serving_ids_sql), params).mappings().all()
-
-    serving_ids = [r["id"] for r in rows]
-
-    if not serving_ids:
-        return {"clients": [], "selection_stats": {"total_servings": 0, "ingredients": []}}
-
-    return get_portioning_view_for_serving_ids(serving_ids)
+        "clients": clients
+    }, None
