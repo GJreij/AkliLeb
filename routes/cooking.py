@@ -10,10 +10,10 @@ def cooking_overview():
     start_date = data.get("start_date")
     end_date = data.get("end_date")
 
-    # print("HEADERS:", dict(request.headers))
-    # print("RAW:", request.data.decode("utf-8"))
-    # print("FORM:", request.form.to_dict())
-    # print("JSON:", request.get_json(silent=True))
+    print("HEADERS:", dict(request.headers))
+    print("RAW:", request.data.decode("utf-8"))
+    print("FORM:", request.form.to_dict())
+    print("JSON:", request.get_json(silent=True))
     if not start_date or not end_date:
         return jsonify({"error": "start_date and end_date are required"}), 400
 
