@@ -2,50 +2,42 @@
 
 from flask import Blueprint, request, jsonify
 from services.portioning_service import (
-    get_portioning_view_for_serving_ids,
-    get_portioning_view_by_filters,
+    normalize_filter_value,
+    parse_int_list,
+    get_portioning_summary
 )
-
-
 
 portioning_bp = Blueprint("portioning", __name__)
 
 
-@portioning_bp.route("/portioning/by-ids", methods=["POST"])
-def portioning_by_ids():
-    data = request.get_json(silent=True) or {}
-    serving_ids = data.get("serving_ids", [])
+@portioning_bp.route("/portioning/summary", methods=["POST"])
+def portioning_summary():
+    body = request.get_json(silent=True) or {}
 
-    if not serving_ids:
-        return jsonify({"error": "serving_ids is required"}), 400
+    raw_subrecipe_id = normalize_filter_value(body.get("subrecipe_id"))
+    raw_mpdr_ids = normalize_filter_value(body.get("meal_plan_day_recipe_ids"))
+    raw_status = normalize_filter_value(body.get("cooking_status")) or "completed"
 
-    try:
-        result = get_portioning_view_for_serving_ids(serving_ids)
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@portioning_bp.route("/portioning/by-filters", methods=["POST"])
-def portioning_by_filters():
-    data = request.get_json(silent=True) or {}
-
-    start_date = data.get("start_date")
-    end_date = data.get("end_date")
-
-    if not start_date or not end_date:
-        return jsonify({"error": "start_date and end_date are required"}), 400
+    if raw_subrecipe_id is None:
+        return jsonify({"error": "subrecipe_id is required"}), 400
 
     try:
-        result = get_portioning_view_by_filters(
-            start_date=start_date,
-            end_date=end_date,
-            recipe_id=data.get("recipe_id"),
-            delivery_slot_id=data.get("delivery_slot_id"),
-            subrecipe_id=data.get("subrecipe_id"),
-            cooking_status=data.get("cooking_status"),
-            portioning_status=data.get("portioning_status"),
-        )
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        subrecipe_id = int(raw_subrecipe_id)
+    except:
+        return jsonify({"error": "subrecipe_id must be integer"}), 400
+
+    try:
+        meal_plan_day_recipe_ids = parse_int_list(raw_mpdr_ids, "meal_plan_day_recipe_ids")
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    result, error = get_portioning_summary(
+        subrecipe_id=subrecipe_id,
+        meal_plan_day_recipe_ids=meal_plan_day_recipe_ids,
+        cooking_status=raw_status
+    )
+
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify(result)
