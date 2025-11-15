@@ -45,7 +45,7 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
         supabase.table("meal_plan_day_recipe_serving")
         .select(
             "id, meal_plan_day_recipe_id, subrecipe_id, "
-            "recipe_subrecipe_serving_calculated, weight_after_cooking, cooking_status"
+            "recipe_subrecipe_serving_calculated, weight_after_cooking, cooking_status,portioning_status "
         )
         .eq("subrecipe_id", subrecipe_id)
         .in_("meal_plan_day_recipe_id", meal_plan_day_recipe_ids)
@@ -175,24 +175,33 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
         )
         ingredients_by_id = {i["id"]: i for i in (ing_res.data or [])}
 
-    # --- Build result lines per client ---
-    clients = []
-    for r in servings:
-        mpdr = mpdr_by_id.get(r["meal_plan_day_recipe_id"])
-        mpd = mpd_by_id.get(mpdr["meal_plan_day_id"])
-        deliv = deliveries_by_id.get(mpd.get("delivery_id"))
-        user = users_by_id.get(deliv.get("user_id")) if deliv else None
-        slot = slots_by_id.get(deliv.get("delivery_slot_id")) if deliv else None
+        # --- Build result lines per client ---
+        clients = []
+        for r in servings:
+            mpdr = mpdr_by_id.get(r["meal_plan_day_recipe_id"])
+            mpd = mpd_by_id.get(mpdr["meal_plan_day_id"])
+            deliv = deliveries_by_id.get(mpd.get("delivery_id"))
+            user = users_by_id.get(deliv.get("user_id")) if deliv else None
+            slot = slots_by_id.get(deliv.get("delivery_slot_id")) if deliv else None
 
-        clients.append({
-            "meal_plan_day_recipe_serving_id": r["id"],
-            "delivery_date": deliv.get("delivery_date") if deliv else None,
-            "delivery_slot": slot,
-            "client": user,
-            "servings_for_client": r.get("recipe_subrecipe_serving_calculated"),
-            "weight_after_cooking": r.get("weight_after_cooking"),
-            "has_weight_after_cooking": r.get("weight_after_cooking") is not None
+            clients.append({
+        "meal_plan_day_recipe_serving_id": r["id"],
+        "delivery_date": deliv.get("delivery_date") if deliv else None,
+        "delivery_slot": slot,
+        "client": user,
+
+        # servings
+        "servings_for_client": r.get("recipe_subrecipe_serving_calculated"),
+
+        # cooking / portioning status
+        "cooking_status": r.get("cooking_status"),
+        "portioning_status": r.get("portioning_status"),
+
+        # weight handling
+        "weight_after_cooking": r.get("weight_after_cooking") or 0,
+        "has_weight_after_cooking": r.get("weight_after_cooking") is not None
         })
+
 
     # --- Ingredient summary ---
     ingredients_summary = []
