@@ -148,6 +148,9 @@ def get_cooking_overview(start_date, end_date, filters):
     if not servings:
         return []
 
+    # SORT SERVINGS TO ENSURE DETERMINISTIC ORDER
+    servings.sort(key=lambda s: (s.get("subrecipe_id") or 0, s.get("id")))
+
     subrecipe_ids = list({s["subrecipe_id"] for s in servings if s["subrecipe_id"]})
 
     # =====================================================
@@ -193,7 +196,17 @@ def get_cooking_overview(start_date, end_date, filters):
     # =====================================================
     output = []
 
-    for recipe_id in recipe_ids:
+    # SORT RECIPES BY EARLIEST DATE
+    recipe_ids_sorted = sorted(
+        recipe_ids,
+        key=lambda rid: min(
+            mpd_map[r["meal_plan_day_id"]]["date"]
+            for r in mpdr
+            if r["recipe_id"] == rid
+        )
+    )
+
+    for recipe_id in recipe_ids_sorted:
         recipe = recipe_map.get(recipe_id)
         if not recipe:
             continue
@@ -211,7 +224,7 @@ def get_cooking_overview(start_date, end_date, filters):
         earliest_date = min(dates)
 
         # ------------------------------------------
-        # 🟦 RECIPE-LEVEL INGREDIENTS (rounded)
+        # 🟦 RECIPE-LEVEL INGREDIENTS (sorted alphabetically)
         # ------------------------------------------
         recipe_ing_totals = defaultdict(float)
 
@@ -231,18 +244,21 @@ def get_cooking_overview(start_date, end_date, filters):
 
                 recipe_ing_totals[ing_id] += base_qty * multiplier * serving_per_unit
 
-        ingredient_list = [
-            {
-                "ingredient_id": ing_id,
-                "name": ingredient_map[ing_id]["name"],
-                "unit": ingredient_map[ing_id]["unit"],
-                "total_quantity": round(qty, 1),
-            }
-            for ing_id, qty in recipe_ing_totals.items()
-        ]
+        ingredient_list = sorted(
+            [
+                {
+                    "ingredient_id": ing_id,
+                    "name": ingredient_map[ing_id]["name"],
+                    "unit": ingredient_map[ing_id]["unit"],
+                    "total_quantity": round(qty, 1),
+                }
+                for ing_id, qty in recipe_ing_totals.items()
+            ],
+            key=lambda x: x["name"].lower(),
+        )
 
         # ------------------------------------------
-        # 🟧 SUBRECIPES (grouped)
+        # 🟧 SUBRECIPES (sorted alphabetically)
         # ------------------------------------------
         servings_by_sub = defaultdict(list)
         for s in recipe_servings:
@@ -271,7 +287,7 @@ def get_cooking_overview(start_date, end_date, filters):
             else:
                 sub_status = "in_progress"
 
-            # SUBRECIPE INGREDIENTS (rounded)
+            # SUBRECIPE INGREDIENTS (sorted alphabetically)
             sub_ing_totals = defaultdict(float)
             for ing in subrec_ing_map[sub_id]:
                 ing_id = ing["ingredient_id"]
@@ -282,15 +298,18 @@ def get_cooking_overview(start_date, end_date, filters):
 
                 sub_ing_totals[ing_id] += base_qty * total_servings * serving_per_unit
 
-            sub_ing_list = [
-                {
-                    "ingredient_id": ing_id,
-                    "name": ingredient_map[ing_id]["name"],
-                    "unit": ingredient_map[ing_id]["unit"],
-                    "quantity": round(qty, 1),
-                }
-                for ing_id, qty in sub_ing_totals.items()
-            ]
+            sub_ing_list = sorted(
+                [
+                    {
+                        "ingredient_id": ing_id,
+                        "name": ingredient_map[ing_id]["name"],
+                        "unit": ingredient_map[ing_id]["unit"],
+                        "quantity": round(qty, 1),
+                    }
+                    for ing_id, qty in sub_ing_totals.items()
+                ],
+                key=lambda x: x["name"].lower(),
+            )
 
             subrecipe_list.append(
                 {
@@ -305,6 +324,9 @@ def get_cooking_overview(start_date, end_date, filters):
                     "ingredients_needed": sub_ing_list,
                 }
             )
+
+        # SORT SUBRECIPES ALPHABETICALLY
+        subrecipe_list = sorted(subrecipe_list, key=lambda x: x["name"].lower())
 
         # ------------------------------------------------
         # 🟥 RECIPE PROGRESS = average of subrecipe progress
@@ -328,5 +350,8 @@ def get_cooking_overview(start_date, end_date, filters):
                 "subrecipes": subrecipe_list,
             }
         )
+
+    # FINAL SORT: recipes by earliest date
+    output = sorted(output, key=lambda r: r["earliest_date"])
 
     return output
