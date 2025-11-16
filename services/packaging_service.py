@@ -1,23 +1,11 @@
 # services/packaging_service.py
 
 from utils.supabase_client import supabase
-from datetime import datetime
 
 
 def get_packaging_view(start_date, end_date):
-    """
-    Packaging process:
-    For each client and delivery between start_date and end_date, return:
-    - client name / last name
-    - delivery_date
-    - delivery slot
-    - recipes
-      - meal_type
-      - recipe name
-      - subrecipes + serving size
-    """
 
-    # --- 1. Get deliveries in range ---
+    # --- 1. Deliveries between dates ---
     deliveries_res = (
         supabase.table("deliveries")
         .select("id, delivery_date, delivery_slot_id, user_id")
@@ -30,10 +18,9 @@ def get_packaging_view(start_date, end_date):
     if not deliveries:
         return []
 
-    delivery_ids = [d["id"] for d in deliveries]
     deliveries_by_id = {d["id"]: d for d in deliveries}
 
-    # --- 2. Get delivery slots ---
+    # --- 2. Delivery slots ---
     slot_ids = list({d["delivery_slot_id"] for d in deliveries if d.get("delivery_slot_id")})
     slots_by_id = {}
 
@@ -46,7 +33,7 @@ def get_packaging_view(start_date, end_date):
         )
         slots_by_id = {s["id"]: s for s in (slots_res.data or [])}
 
-    # --- 3. Get users ---
+    # --- 3. Users ---
     user_ids = list({d["user_id"] for d in deliveries if d.get("user_id")})
     users_by_id = {}
 
@@ -59,18 +46,21 @@ def get_packaging_view(start_date, end_date):
         )
         users_by_id = {u["id"]: u for u in (users_res.data or [])}
 
-    # --- 4. meal_plan_day linked to these deliveries ---
+    # --- 4. meal_plan_day ---
     mpd_res = (
         supabase.table("meal_plan_day")
-        .select("id, meal_plan_id, date, delivery_id")
-        .in_("delivery_id", delivery_ids)
+        .select("id, delivery_id")
+        .in_("delivery_id", list(deliveries_by_id.keys()))
         .execute()
     )
-    mpd = mpd_res.data or []
-    mpd_by_id = {m["id"]: m for m in mpd}
-    mpd_ids = [m["id"] for m in mpd]
 
-    # --- 5. meal_plan_day_recipe (recipe of the day) ---
+    mpd = mpd_res.data or []
+    mpd_by_delivery = {}
+    for row in mpd:
+        mpd_by_delivery.setdefault(row["delivery_id"], []).append(row)
+
+    # --- 5. meal_plan_day_recipe ---
+    mpd_ids = [m["id"] for m in mpd]
     mpdr_res = (
         supabase.table("meal_plan_day_recipe")
         .select("id, meal_plan_day_id, recipe_id, meal_type")
@@ -78,14 +68,12 @@ def get_packaging_view(start_date, end_date):
         .execute()
     )
     mpdr = mpdr_res.data or []
-    mpdr_by_day = {}
-
+    mpdr_by_mpd = {}
     for r in mpdr:
-        mpdr_by_day.setdefault(r["meal_plan_day_id"], []).append(r)
+        mpdr_by_mpd.setdefault(r["meal_plan_day_id"], []).append(r)
 
+    # --- 6. recipes ---
     recipe_ids = [r["recipe_id"] for r in mpdr if r.get("recipe_id")]
-
-    # --- 6. recipes info ---
     recipes_by_id = {}
     if recipe_ids:
         recipes_res = (
@@ -96,11 +84,11 @@ def get_packaging_view(start_date, end_date):
         )
         recipes_by_id = {r["id"]: r for r in (recipes_res.data or [])}
 
-    # --- 7. subrecipe serving info (meal_plan_day_recipe_serving) ---
+    # --- 7. servings (subrecipes) ---
     mpdr_ids = [r["id"] for r in mpdr]
     servings_res = (
         supabase.table("meal_plan_day_recipe_serving")
-        .select("id, meal_plan_day_recipe_id, subrecipe_id, recipe_subrecipe_serving_calculated")
+        .select("meal_plan_day_recipe_id, subrecipe_id, recipe_subrecipe_serving_calculated")
         .in_("meal_plan_day_recipe_id", mpdr_ids)
         .execute()
     )
@@ -110,72 +98,96 @@ def get_packaging_view(start_date, end_date):
     for s in servings:
         servings_by_mpdr.setdefault(s["meal_plan_day_recipe_id"], []).append(s)
 
-    # --- 8. fetch subrecipes info ---
+    # --- 8. subrecipes ---
     subrecipe_ids = list({s["subrecipe_id"] for s in servings if s.get("subrecipe_id")})
     subrecipes_by_id = {}
     if subrecipe_ids:
-        sub_res = (
+        subrecipes_res = (
             supabase.table("subrecipe")
             .select("id, name")
             .in_("id", subrecipe_ids)
             .execute()
         )
-        subrecipes_by_id = {s["id"]: s for s in (sub_res.data or [])}
+        subrecipes_by_id = {s["id"]: s for s in (subrecipes_res.data or [])}
 
-    # --- 9. Build structured packaging list ---
+    # -------------------------------------------------------------------------
+    # ------------------------- GROUPING STARTS HERE ---------------------------
+    # -------------------------------------------------------------------------
 
-    packaging = []
+    packaging_output = {}
 
     for delivery in deliveries:
+        d_date = delivery["delivery_date"]
+        slot_id = delivery["delivery_slot_id"]
         user = users_by_id.get(delivery["user_id"])
-        slot = slots_by_id.get(delivery["delivery_slot_id"])
+        slot = slots_by_id.get(slot_id)
 
-        # which meal_plan_day belongs to this delivery?
-        for mpd_entry in mpd:
-            if mpd_entry["delivery_id"] != delivery["id"]:
-                continue
+        # Initialize date group
+        if d_date not in packaging_output:
+            packaging_output[d_date] = {}
 
-            mpdr_list = mpdr_by_day.get(mpd_entry["id"], [])
+        # Initialize slot group
+        if slot_id not in packaging_output[d_date]:
+            packaging_output[d_date][slot_id] = {
+                "slot_id": slot_id,
+                "start_time": slot["start_time"] if slot else None,
+                "end_time": slot["end_time"] if slot else None,
+                "clients": {}
+            }
 
-            recipes_output = []
+        client_key = delivery["user_id"]
 
-            for r in mpdr_list:
-                recipe_info = recipes_by_id.get(r["recipe_id"])
-                servings_list = servings_by_mpdr.get(r["id"], [])
+        if client_key not in packaging_output[d_date][slot_id]["clients"]:
+            packaging_output[d_date][slot_id]["clients"][client_key] = {
+                "name": user.get("name") if user else None,
+                "last_name": user.get("last_name") if user else None,
+                "recipes": []
+            }
 
-                subrecipes_output = []
-                for serv in servings_list:
-                    subrecipes_output.append({
+        # Which mpd entries belong to this delivery?
+        mpd_entries = mpd_by_delivery.get(delivery["id"], [])
+
+        for mpd_entry in mpd_entries:
+            mpdr_list = mpdr_by_mpd.get(mpd_entry["id"], [])
+
+            for mpdr_entry in mpdr_list:
+                recipe_info = recipes_by_id.get(mpdr_entry["recipe_id"])
+
+                # Subrecipes
+                subs = []
+                for serv in servings_by_mpdr.get(mpdr_entry["id"], []):
+                    subs.append({
                         "subrecipe_id": serv["subrecipe_id"],
                         "subrecipe_name": subrecipes_by_id.get(serv["subrecipe_id"], {}).get("name"),
                         "serving_size": serv["recipe_subrecipe_serving_calculated"]
                     })
 
-                recipes_output.append({
-                    "meal_type": r.get("meal_type"),
-                    "recipe_id": r.get("recipe_id"),
+                packaging_output[d_date][slot_id]["clients"][client_key]["recipes"].append({
+                    "meal_type": mpdr_entry.get("meal_type"),
                     "recipe_name": recipe_info.get("name") if recipe_info else None,
-                    "subrecipes": subrecipes_output
+                    "subrecipes": subs
                 })
 
-            packaging.append({
-                "client": {
-                    "name": user.get("name") if user else None,
-                    "last_name": user.get("last_name") if user else None
-                },
-                "delivery_date": delivery.get("delivery_date"),
-                "delivery_slot": slot,
-                "recipes": recipes_output
-            })
+    # -------------------------------------------------------------------------
+    # ------------------------ TRANSFORM INTO ARRAY ---------------------------
+    # -------------------------------------------------------------------------
 
-    # --- 10. Sorting by date and slot ---
+    final_output = []
+    for d_date, slots in sorted(packaging_output.items()):
+        slot_list = []
+        for slot_id, slot_data in sorted(slots.items(), key=lambda x: x[1]["start_time"] or ""):
+            clients_list = list(slot_data["clients"].values())
+            slot_data_out = {
+                "slot_id": slot_id,
+                "start_time": slot_data["start_time"],
+                "end_time": slot_data["end_time"],
+                "clients": clients_list
+            }
+            slot_list.append(slot_data_out)
 
-    def sort_key(entry):
-        date = entry["delivery_date"]
-        slot = entry["delivery_slot"]["start_time"] if entry["delivery_slot"] else "00:00:00"
-        name = entry["client"]["name"] or ""
-        return (date, slot, name)
+        final_output.append({
+            "delivery_date": d_date,
+            "slots": slot_list
+        })
 
-    packaging.sort(key=sort_key)
-
-    return packaging
+    return final_output
