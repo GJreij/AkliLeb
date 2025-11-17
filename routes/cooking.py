@@ -29,7 +29,7 @@ def cooking_overview():
         "recipe_id":     clean(data.get("recipe_id")),
         "subrecipe_id":  clean(data.get("subrecipe_id")),
         "ingredient_id": clean(data.get("ingredient_id")),
-        "status":        clean(data.get("status")),
+        "cooking_status":        clean(data.get("cooking_status")),
     }
 
     result = get_cooking_overview(start_date, end_date, filters)
