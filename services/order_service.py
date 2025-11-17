@@ -234,7 +234,8 @@ class OrderService:
                     "meal_plan_day_id": mpd_id,
                     "recipe_id": meal["recipe_id"],
                     "meal_type": meal.get("meal_type"),
-                    "status": "pending",
+                    "cooking_status": "pending",     # UPDATED
+                    "packaging_status": "pending",   # UPDATED  
                     "created_at": datetime.utcnow().isoformat()
                 })
 
