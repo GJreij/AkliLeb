@@ -163,6 +163,7 @@ def get_packaging_view(start_date, end_date):
                     })
 
                 packaging_output[d_date][slot_id]["clients"][client_key]["recipes"].append({
+                    "meal_plan_day_recipe_id": mpdr_entry["id"],
                     "meal_type": mpdr_entry.get("meal_type"),
                     "recipe_name": recipe_info.get("name") if recipe_info else None,
                     "subrecipes": subs
