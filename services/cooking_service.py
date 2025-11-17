@@ -104,13 +104,13 @@ def get_cooking_overview(start_date, end_date, filters):
     # 3️⃣ Fetch meal_plan_day_recipe
     # =====================================================
     mpdr_query = (
-        supabase.table("meal_plan_day_recipe")
-        .select("id, meal_plan_day_id, recipe_id, status")
-        .in_("meal_plan_day_id", mpd_ids)
+    supabase.table("meal_plan_day_recipe")
+    .select("id, meal_plan_day_id, recipe_id, cooking_status, packaging_status")
+    .in_("meal_plan_day_id", mpd_ids)
     )
 
     mpdr_query = apply_null_filter(mpdr_query, "recipe_id", filters["recipe_id"])
-    mpdr_query = apply_null_filter(mpdr_query, "status", filters["status"])
+    mpdr_query = apply_null_filter(mpdr_query, "cooking_status", filters["cooking_status"])
 
     mpdr = mpdr_query.execute().data
     if not mpdr:
@@ -141,8 +141,9 @@ def get_cooking_overview(start_date, end_date, filters):
     )
 
     servings_query = apply_null_filter(servings_query, "subrecipe_id", filters["subrecipe_id"])
-    servings_query = apply_null_filter(servings_query, "cooking_status", filters["status"])
-    servings_query = apply_null_filter(servings_query, "portioning_status", filters["status"])
+    servings_query = apply_null_filter(servings_query, "cooking_status", filters["cooking_status"])
+    servings_query = apply_null_filter(servings_query, "portioning_status", filters["portioning_status"])
+
 
     servings = servings_query.execute().data
     if not servings:
@@ -344,7 +345,7 @@ def get_cooking_overview(start_date, end_date, filters):
                 "instructions": recipe["instructions"],
                 "meal_plan_day_recipe_ids": mpdr_ids_for_recipe,
                 "earliest_date": earliest_date,
-                "status": mpdr_for_recipe[0]["status"],
+                "cooking_status": mpdr_for_recipe[0]["cooking_status"],
                 "progress": recipe_progress,
                 "ingredients_needed": ingredient_list,
                 "subrecipes": subrecipe_list,
