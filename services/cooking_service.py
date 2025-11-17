@@ -142,8 +142,7 @@ def get_cooking_overview(start_date, end_date, filters):
 
     servings_query = apply_null_filter(servings_query, "subrecipe_id", filters["subrecipe_id"])
     servings_query = apply_null_filter(servings_query, "cooking_status", filters["cooking_status"])
-    servings_query = apply_null_filter(servings_query, "portioning_status", filters["portioning_status"])
-
+    
 
     servings = servings_query.execute().data
     if not servings:
