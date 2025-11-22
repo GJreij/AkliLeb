@@ -239,7 +239,9 @@ def optimize_subrecipes(
             ))
 
             return optimized, total_error, day_totals
-
+    print(">>> Optimizer FAILED. Recipes:", recipes_by_meal)
+    print(">>> Subrecipes:", all_subs)
+    print(">>> Target:", macro_target)
     # No feasible solution
     return [], None, {
         "protein": 0,
