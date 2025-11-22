@@ -152,26 +152,45 @@ def generate_meal_plan():
     # --- 4) Get latest daily macro target ---
     macro_target_resp = (
         supabase.table("daily_macro_target")
-        .select("protein_g, carbs_g, fat_g, kcal_target")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
+            .select("protein_g, carbs_g, fat_g, kcal_target")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
     )
 
     if not macro_target_resp.data:
         return jsonify({"error": "No macro target found for this user"}), 400
 
     target = macro_target_resp.data[0]
-    protein_g = target.get("protein_g") or 0.0
-    carbs_g = target.get("carbs_g") or 0.0
-    fat_g = target.get("fat_g") or 0.0
-    kcal = target.get("kcal_target") or 0.0
+
+    # Extract macros safely
+    protein_g = float(target.get("protein_g") or 0.0)
+    carbs_g   = float(target.get("carbs_g") or 0.0)
+    fat_g     = float(target.get("fat_g") or 0.0)
+
+    # Compute kcal from macros
+    computed_kcal = protein_g * 4 + carbs_g * 4 + fat_g * 9
+
+    # Use DB kcal_target only if valid AND consistent
+    db_kcal = target.get("kcal_target")
+
+    if isinstance(db_kcal, (int, float)) and db_kcal > 0:
+        # optional: accept db_kcal if within 10% difference
+        if abs(db_kcal - computed_kcal) / max(computed_kcal, 1) <= 0.10:
+            kcal = db_kcal
+        else:
+            kcal = computed_kcal
+    else:
+        kcal = computed_kcal
 
     target_with_kcal = {
-        **target,
-        
+        "protein_g": protein_g,
+        "carbs_g": carbs_g,
+        "fat_g": fat_g,
+        "kcal": round(kcal),
     }
+
 
     # --- 5) Build meal plan day by day ---
     total_days = (end_date - start_date).days + 1
