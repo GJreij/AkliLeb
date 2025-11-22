@@ -152,7 +152,7 @@ def generate_meal_plan():
     # --- 4) Get latest daily macro target ---
     macro_target_resp = (
         supabase.table("daily_macro_target")
-        .select("protein_g, carbs_g, fat_g")
+        .select("protein_g, carbs_g, fat_g, kcal_target")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -166,11 +166,11 @@ def generate_meal_plan():
     protein_g = target.get("protein_g") or 0.0
     carbs_g = target.get("carbs_g") or 0.0
     fat_g = target.get("fat_g") or 0.0
-    kcal = protein_g * 4 + carbs_g * 4 + fat_g * 9
+    kcal = target.get("kcal_target") or 0.0
 
     target_with_kcal = {
         **target,
-        "kcal": kcal,
+        
     }
 
     # --- 5) Build meal plan day by day ---
