@@ -9,6 +9,78 @@ from pulp import (
 )
 from utils.supabase_client import supabase
 
+# -------------------------------------------------------------
+# SAFE FALLBACK MODE — ensure minimum viable plan
+# -------------------------------------------------------------
+def safe_fallback():
+    # Step 1: initial servings (1 each)
+    servings_safe = {i: 1 for i in range(len(all_subs))}
+    
+    def totals(servs):
+        P = sum(servs[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
+        C = sum(servs[i] * s["macros"]["carbs"] for i, s in enumerate(all_subs))
+        F = sum(servs[i] * s["macros"]["fat"] for i, s in enumerate(all_subs))
+        K = sum(servs[i] * s["macros"]["kcal"] for i, s in enumerate(all_subs))
+        return P, C, F, K
+
+    P, C, F, K = totals(servings_safe)
+
+    target_P = P_t
+    target_K_low = 0.8 * kcal_t
+    target_K_high = 1.2 * kcal_t
+
+    # Step 2: increase protein until target hit
+    while P < target_P and K < target_K_high:
+        best = max(
+            range(len(all_subs)),
+            key=lambda i: (all_subs[i]["macros"]["protein"] /
+                           max(all_subs[i]["macros"]["kcal"], 1))
+        )
+        if servings_safe[best] < all_subs[best]["max_serving"]:
+            servings_safe[best] += 1
+            P, C, F, K = totals(servings_safe)
+        else:
+            break
+
+    # Step 3: increase kcal to reach 80%
+    while K < target_K_low:
+        best = max(
+            range(len(all_subs)),
+            key=lambda i: all_subs[i]["macros"]["kcal"]
+        )
+        if servings_safe[best] < all_subs[best]["max_serving"]:
+            servings_safe[best] += 1
+            P, C, F, K = totals(servings_safe)
+        else:
+            break
+
+    # Step 4: build final output
+    optimized_safe = []
+    for i, s in enumerate(all_subs):
+        servings_val = servings_safe[i]
+        macros = {
+            "protein": servings_val * s["macros"]["protein"],
+            "carbs": servings_val * s["macros"]["carbs"],
+            "fat": servings_val * s["macros"]["fat"],
+            "kcal": servings_val * s["macros"]["kcal"],
+        }
+        optimized_safe.append({
+            "subrecipe_id": s["subrecipe_id"],
+            "name": s["name"],
+            "meal_name": s["meal"],
+            "meal_type": recipes_by_meal[s["meal"]]["meal_type"],
+            "servings": servings_val,
+            "macros": macros,
+        })
+
+    return optimized_safe, None, {
+        "protein": int(P),
+        "carbs": int(C),
+        "fat": int(F),
+        "kcal": int(K),
+        "tolerance_used": "SAFE_FALLBACK",
+    }
+
 
 def get_recipe_subrecipes(recipe_id: int) -> List[Dict[str, Any]]:
     resp = (
@@ -69,13 +141,13 @@ def optimize_subrecipes(
     # -------------------------------------------------------------
     # Config
     # -------------------------------------------------------------
-    KCAL_TOLERANCES = [0.10, 0.15, 0.20]
+    KCAL_TOLERANCES = [0.10, 0.15, 0.20, 0.4]
 
-    BREAKFAST_MAX_PCT = 0.30
-    SNACK_MAX_PCT = 0.20
-    DINNER_LUNCH_DIFF_PCT = 0.20
-    NO_DINNER_YES_LUNCH_PCT = 0.6
-    NO_LUNCH_YES_DINNER_PCT = 0.6
+    BREAKFAST_MAX_PCT = 0.40
+    SNACK_MAX_PCT = 0.30
+    DINNER_LUNCH_DIFF_PCT = 0.30
+    NO_DINNER_YES_LUNCH_PCT = 0.7
+    NO_LUNCH_YES_DINNER_PCT = 0.7
 
     SERVING_MIN = 1
     DEFAULT_MAX_SERVING = 3
@@ -239,15 +311,6 @@ def optimize_subrecipes(
             ))
 
             return optimized, total_error, day_totals
-    print(">>> Optimizer FAILED. Recipes:", recipes_by_meal)
-    print(">>> Subrecipes:", all_subs)
-    print(">>> Target:", macro_target)
+
     # No feasible solution
-    return [], None, {
-        "protein": 0,
-        "carbs": 0,
-        "fat": 0,
-        "kcal": 0,
-        "tolerance_used": None,
-        "error": "No feasible solution found within ±20% kcal tolerance",
-    }
+    return safe_fallback()
