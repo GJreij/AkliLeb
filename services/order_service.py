@@ -1,7 +1,7 @@
 # services/order_service.py
 
 from utils.supabase_client import supabase
-from datetime import datetime
+from datetime import datetime, timedelta
 
 DEFAULT_MAX_DELIVERIES = 20
 
@@ -11,34 +11,62 @@ class OrderService:
         self.sb = supabase
 
     # ---------- PUBLIC ORCHESTRATOR ----------
+
     def confirm_order(self, user_id, meal_plan, checkout_summary, delivery_slot_id):
         """
         Flow:
-          1) Extract ordered days from meal_plan
-          2) Capacity checks & ensure delivery_slots_daily rows (bulk)
-          3) Upsert user_delivery_preference
-          4) Fetch user delivery address + partner via partner_client_link
-          5) Create deliveries and increment slot counts
-          6) Create meal_plan + meal_plan_day (+ link deliveries)
-          7) Create payment rows linked to meal_plan_day
+          1) Extract ordered meal days from meal_plan
+          2) Determine slot period (AM/PM) from delivery_slots.start_time
+          3) Map meal days -> delivery days based on AM/PM logic
+          4) Capacity checks & ensure delivery_slots_daily rows (bulk)
+          5) Upsert user_delivery_preference
+          6) Fetch user delivery address + partner via partner_client_link
+          7) Create deliveries and increment slot counts (for delivery days)
+          8) Create meal_plan + meal_plan_day (+ link correct deliveries)
+          9) Create payment rows linked to meal_plan_day
         """
-        # 1) days from meal_plan
-        selected_days = [d["date"] for d in (meal_plan.get("days") or []) if "date" in d]
-        if not selected_days:
-            return {"error": "No delivery days found in meal plan."}, 400
 
-        # 2) capacity checks (bulk) + ensure rows exist; also return slot_day_map
-        full_days, slot_day_map = self._check_and_prepare_slot_days(selected_days, delivery_slot_id)
+        # 1) meal days from meal_plan
+        meal_days = [d["date"] for d in (meal_plan.get("days") or []) if "date" in d]
+        if not meal_days:
+            return {"error": "No meal days found in meal plan."}, 400
+
+        # 2) determine if the slot is AM or PM based on start_time in delivery_slots
+        try:
+            slot_period = self._get_slot_period(delivery_slot_id)  # "AM" or "PM"
+        except ValueError as e:
+            return {"error": str(e)}, 400
+
+        # 3) map meal_day -> delivery_day according to your business logic:
+        #    - AM slot: deliver on the same calendar day as the meal
+        #    - PM slot: deliver the previous calendar day (evening before)
+        delivery_days = []
+        meal_to_delivery = {}
+
+        for meal_day_str in meal_days:
+            meal_date = datetime.strptime(meal_day_str, "%Y-%m-%d").date()
+
+            if slot_period == "AM":
+                delivery_date = meal_date
+            else:  # "PM"
+                delivery_date = meal_date - timedelta(days=1)
+
+            delivery_str = delivery_date.isoformat()
+            delivery_days.append(delivery_str)
+            meal_to_delivery[meal_day_str] = delivery_str
+
+        # 4) capacity checks (bulk) on DELIVERY days + ensure rows exist; also return slot_day_map
+        full_days, slot_day_map = self._check_and_prepare_slot_days(delivery_days, delivery_slot_id)
         if len(full_days) > 2:
             return {
                 "error": "Too many selected delivery days are fully booked. Please change your slot.",
                 "full_days": full_days,
             }, 400
 
-        # 3) upsert preference (same logic as before)
+        # 5) upsert preference
         self._upsert_user_delivery_preference(user_id, delivery_slot_id)
 
-        # 4) user info + partner
+        # 6) user info + partner
         user_info = self._fetch_user_delivery_and_partner(user_id)
         if not user_info or not user_info.get("delivery_address"):
             return {"error": "User delivery address not found."}, 400
@@ -46,23 +74,24 @@ class OrderService:
         delivery_address = user_info["delivery_address"]
         partner_id = user_info.get("partner_id")
 
-        # 5) create deliveries + increment counts (uses slot_day_map to avoid extra selects)
+        # 7) create deliveries + increment counts (uses DELIVERY days)
         deliveries_map = self._create_deliveries_and_increment_counts(
             user_id=user_id,
-            selected_days=selected_days,
+            delivery_days=delivery_days,
             delivery_slot_id=delivery_slot_id,
             delivery_address=delivery_address,
             slot_day_map=slot_day_map,
         )
 
-        # 6) persist meal plan bundle & get mapping date -> meal_plan_day_id
+        # 8) persist meal plan bundle & get mapping meal_date -> meal_plan_day_id
         day_to_meal_plan_day_id = self._store_meal_plan_bundle(
             user_id=user_id,
             meal_plan=meal_plan,
-            deliveries_map=deliveries_map,
+            deliveries_map=deliveries_map,   # keyed by delivery_date
+            meal_to_delivery=meal_to_delivery,  # meal_date -> delivery_date
         )
 
-        # 7) payment (use the mapping instead of re-selecting from DB)
+        # 9) payment (unchanged: uses meal days)
         self._create_payment_record(
             ordered_user_id=user_id,
             partner_id=partner_id,
@@ -72,12 +101,43 @@ class OrderService:
 
         return {"message": "Order successfully confirmed."}, 200
 
+    # ---------- SLOT PERIOD HELPER ----------
+
+    def _get_slot_period(self, delivery_slot_id):
+        """
+        Look up delivery_slots.start_time and infer whether the slot is AM or PM.
+        Assumes start_time is stored as "HH:MM" (24h format).
+        Returns "AM" or "PM".
+        """
+        res = (
+            self.sb.table("delivery_slots")
+            .select("start_time")
+            .eq("id", delivery_slot_id)
+            .execute()
+        )
+
+        data = res.data or []
+        if not data:
+            raise ValueError("Delivery slot not found.")
+
+        start_time_str = data[0].get("start_time")
+        if not start_time_str:
+            raise ValueError("Delivery slot start_time is missing.")
+
+        # Parse "HH:MM"
+        try:
+            hour = int(start_time_str.split(":")[0])
+        except Exception:
+            raise ValueError("Invalid start_time format for delivery slot.")
+
+        return "AM" if hour < 12 else "PM"
+
     # ---------- HELPERS ----------
 
-    def _check_and_prepare_slot_days(self, selected_days, delivery_slot_id):
+    def _check_and_prepare_slot_days(self, delivery_days, delivery_slot_id):
         """
         Bulk version:
-        - Fetch existing delivery_slots_daily rows for all selected_days.
+        - Fetch existing delivery_slots_daily rows for all delivery_days.
         - Insert missing rows in one batch.
         - Return:
             full_days: list of days where current_count >= max_deliveries
@@ -88,13 +148,13 @@ class OrderService:
             self.sb.table("delivery_slots_daily")
             .select("*")
             .eq("delivery_slot_id", delivery_slot_id)
-            .in_("delivery_date", selected_days)
+            .in_("delivery_date", delivery_days)
             .execute()
         )
         slot_day_map = {row["delivery_date"]: row for row in (res.data or [])}
 
         # Find missing days
-        missing_days = [d for d in selected_days if d not in slot_day_map]
+        missing_days = [d for d in delivery_days if d not in slot_day_map]
 
         # Insert missing rows in batch
         if missing_days:
@@ -119,7 +179,7 @@ class OrderService:
 
         # Now compute full_days using the combined map
         full_days = []
-        for d in selected_days:
+        for d in delivery_days:
             row = slot_day_map.get(d)
             if not row:
                 continue
@@ -196,21 +256,21 @@ class OrderService:
     def _create_deliveries_and_increment_counts(
         self,
         user_id,
-        selected_days,
+        delivery_days,
         delivery_slot_id,
         delivery_address,
         slot_day_map,
     ):
         """
-        For each ordered day:
+        For each DELIVERY day:
           - increment current_count in delivery_slots_daily (no extra SELECTs)
           - insert deliveries row
-        Return {date: delivery_id}
+        Return {delivery_date: delivery_id}
         """
         deliveries_map = {}
         now = datetime.utcnow().isoformat()
 
-        for day in selected_days:
+        for day in delivery_days:
             slot_day = slot_day_map.get(day)
 
             if slot_day:
@@ -267,12 +327,12 @@ class OrderService:
 
         return deliveries_map
 
-    def _store_meal_plan_bundle(self, user_id, meal_plan, deliveries_map):
+    def _store_meal_plan_bundle(self, user_id, meal_plan, deliveries_map, meal_to_delivery):
         """
-        Insert meal_plan, per-day rows (with status + delivery_id),
+        Insert meal_plan, per-day rows (with status + correct delivery_id),
         update deliveries.meal_plan_day_id, then recipes & subrecipes.
         Returns:
-          day_to_meal_plan_day_id: {date_str: meal_plan_day_id}
+          day_to_meal_plan_day_id: {meal_date_str: meal_plan_day_id}
         """
         now = datetime.utcnow().isoformat()
 
@@ -294,9 +354,12 @@ class OrderService:
         day_to_meal_plan_day_id = {}
 
         for day in (meal_plan.get("days") or []):
-            date_str = day["date"]
+            meal_date_str = day["date"]
             totals = day.get("totals") or {}
-            delivery_id = deliveries_map.get(date_str)
+
+            # find the delivery date for this meal_date, then the delivery_id
+            delivery_date_str = meal_to_delivery.get(meal_date_str)
+            delivery_id = deliveries_map.get(delivery_date_str) if delivery_date_str else None
 
             # 1️⃣ Create meal_plan_day
             day_ins = (
@@ -304,7 +367,7 @@ class OrderService:
                 .insert(
                     {
                         "meal_plan_id": plan_id,
-                        "date": date_str,
+                        "date": meal_date_str,
                         "delivery_id": delivery_id,
                         "status": "pending",  # assuming this column still exists
                         "created_at": now,
@@ -313,7 +376,7 @@ class OrderService:
                 .execute()
             )
             meal_plan_day_id = day_ins.data[0]["id"]
-            day_to_meal_plan_day_id[date_str] = meal_plan_day_id
+            day_to_meal_plan_day_id[meal_date_str] = meal_plan_day_id
 
             # 2️⃣ Create daily_macro_order
             daily_macro_ins = (
@@ -322,7 +385,7 @@ class OrderService:
                     {
                         "user_id": user_id,
                         "meal_plan_day_id": meal_plan_day_id,
-                        "for_date": date_str,
+                        "for_date": meal_date_str,
                         "protein_ordered": totals.get("protein"),
                         "carbs_ordered": totals.get("carbs"),
                         "fat_ordered": totals.get("fat"),
@@ -417,7 +480,7 @@ class OrderService:
         day_to_meal_plan_day_id,
     ):
         """
-        Create one payment per delivery day, linked to meal_plan_day.
+        Create one payment per meal day, linked to meal_plan_day.
         Uses in-memory map instead of SELECT per day.
         """
         price_breakdown = checkout_summary.get("price_breakdown") or {}
