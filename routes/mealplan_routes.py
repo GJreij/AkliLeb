@@ -6,6 +6,7 @@ import random
 from utils.supabase_client import supabase
 from services.mealplan_service import optimize_subrecipes
 
+
 mealplan_bp = Blueprint("mealplan", __name__)
 
 
@@ -27,7 +28,7 @@ def generate_meal_plan():
 
     try:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        end_date   = datetime.strptime(end_date_str, "%Y-%m-%d").date()
     except:
         return jsonify({"error": "Invalid date format"}), 400
 
@@ -35,15 +36,12 @@ def generate_meal_plan():
         return jsonify({"error": "end_date must be >= start_date"}), 400
 
     # -------------------------------------------------------------
-    # 2. Build meals_map (includes support for snack2, snack3…)
+    # 2. Build meals_map
     # -------------------------------------------------------------
     allowed_meal_types = {"breakfast", "lunch", "dinner", "snack"}
 
     if raw_meals:
-        meals_map = {
-            k: v for k, v in raw_meals.items()
-            if v in allowed_meal_types
-        }
+        meals_map = {k: v for k, v in raw_meals.items() if v in allowed_meal_types}
     else:
         meals_map = {
             "breakfast": "breakfast",
@@ -85,6 +83,7 @@ def generate_meal_plan():
         .eq("user_id", user_id)
         .execute()
     )
+
     user_prefs = {p["recipe_id"]: p for p in (prefs_resp.data or [])}
 
     # -------------------------------------------------------------
@@ -127,14 +126,14 @@ def generate_meal_plan():
     target = macro_target_resp.data[0]
 
     protein_g = float(target.get("protein_g") or 0)
-    carbs_g = float(target.get("carbs_g") or 0)
-    fat_g = float(target.get("fat_g") or 0)
+    carbs_g   = float(target.get("carbs_g") or 0)
+    fat_g     = float(target.get("fat_g") or 0)
 
     computed_kcal = protein_g * 4 + carbs_g * 4 + fat_g * 9
     db_kcal = target.get("kcal_target")
 
     if isinstance(db_kcal, (int, float)) and db_kcal > 0:
-        if abs(db_kcal - computed_kcal) / max(computed_kcal, 1) <= 0.1:
+        if abs(db_kcal - computed_kcal) / max(computed_kcal, 1) <= 0.10:
             kcal = db_kcal
         else:
             kcal = computed_kcal
@@ -148,50 +147,68 @@ def generate_meal_plan():
         "kcal": round(kcal),
     }
 
-    # -------------------------------------------------------------
-    # 7. FAIL-SAFE MEAL SELECTION ENGINE
-    # -------------------------------------------------------------
 
-    # Independent rotation per meal slot
-    recent_recipes = {
+    # -------------------------------------------------------------
+    # 7. NEW FAIL-SAFE + VARIETY SYSTEM
+    # -------------------------------------------------------------
+    # Independent per-meal anti-repeat
+    recent_recipes_per_meal = {
         meal_key: deque(maxlen=4)
         for meal_key in meals_map.keys()
     }
 
-    def get_candidates(meal_type, history):
+    # Strong global anti-repeat across all meal slots
+    recent_recipes_global = deque(maxlen=6)
+
+    def get_candidates(meal_type, meal_history):
         """
-        Multi-layer fail-safe selection.
+        Multi-layer fail-safe + global anti-repeat guarantee.
         Always returns a non-empty list.
         """
 
+        # ---------------------------------------------------------
         # L1 — strict filtering
+        # ---------------------------------------------------------
         preferred = [
             r for _, r in scored_recipes
             if r.get(f"could_be_{meal_type}", False)
-            and r["id"] not in history
+            and r["id"] not in meal_history
+            and r["id"] not in recent_recipes_global
             and not user_prefs.get(r["id"], {}).get("dont_include", False)
         ]
         if preferred:
             return preferred
 
-        # L2 — allow repeated + disliked
-        relaxed = [
+        # ---------------------------------------------------------
+        # L2 — allow disliked + repeated in the same meal,
+        # but NOT globally repeated
+        # ---------------------------------------------------------
+        relaxed_without_global = [
+            r for _, r in scored_recipes
+            if r.get(f"could_be_{meal_type}", False)
+            and r["id"] not in recent_recipes_global
+        ]
+        if relaxed_without_global:
+            return relaxed_without_global
+
+        # ---------------------------------------------------------
+        # L3 — allow global repetition within meal type
+        # ---------------------------------------------------------
+        relaxed_mealtype = [
             r for _, r in scored_recipes
             if r.get(f"could_be_{meal_type}", False)
         ]
-        if relaxed:
-            return relaxed
+        if relaxed_mealtype:
+            return relaxed_mealtype
 
-        # L3 — ignore meal_type constraint completely
-        any_recipe = [r for _, r in scored_recipes]
-        if any_recipe:
-            return any_recipe
+        # ---------------------------------------------------------
+        # L4 — final resort: any recipe
+        # ---------------------------------------------------------
+        return [r[1] for r in scored_recipes]
 
-        # L4 — emergency fallback: return top-scored recipe only
-        return [scored_recipes[0][1]]
 
     # -------------------------------------------------------------
-    # 8. Build plan day-by-day
+    # 8. Generate each day
     # -------------------------------------------------------------
     total_days = (end_date - start_date).days + 1
     days = []
@@ -204,11 +221,13 @@ def generate_meal_plan():
 
         recipes_by_meal = {}
 
-        # Select recipes with full fail-safe protection
+        # ---------------------------------------------------------
+        # Select recipes with the new global anti-repeat logic
+        # ---------------------------------------------------------
         for meal_key, meal_type in meals_map.items():
-            history = recent_recipes[meal_key]
+            meal_history = recent_recipes_per_meal[meal_key]
 
-            candidates = get_candidates(meal_type, history)
+            candidates = get_candidates(meal_type, meal_history)
             chosen = random.choice(candidates)
 
             recipes_by_meal[meal_key] = {
@@ -219,17 +238,18 @@ def generate_meal_plan():
                 "photo": chosen.get("photo"),
             }
 
-            history.append(chosen["id"])
+            # update histories
+            meal_history.append(chosen["id"])
+            recent_recipes_global.append(chosen["id"])
 
         # ---------------------------------------------------------
-        # 9. Optimize macros
+        # 9. Macro optimization
         # ---------------------------------------------------------
         optimized_subs, loss, day_totals = optimize_subrecipes(
             recipes_by_meal,
             target_with_kcal
         )
 
-        # Group subrecipes
         subs_by_meal = {k: [] for k in recipes_by_meal}
         for sub in optimized_subs:
             mk = sub["meal_name"]
@@ -238,25 +258,18 @@ def generate_meal_plan():
                     "subrecipe_id": sub["subrecipe_id"],
                     "name": sub["name"],
                     "servings": sub["servings"],
-                    "macros": sub.get("macros", {})
+                    "macros": sub["macros"],
                 })
 
-        # Compute macros per recipe
         macros_per_recipe = {}
         for meal_key, sub_list in subs_by_meal.items():
-            total_p = sum(s["macros"].get("protein", 0) for s in sub_list)
-            total_c = sum(s["macros"].get("carbs", 0) for s in sub_list)
-            total_f = sum(s["macros"].get("fat", 0) for s in sub_list)
-            total_k = sum(s["macros"].get("kcal", 0) for s in sub_list)
-
             macros_per_recipe[meal_key] = {
-                "protein": int(round(total_p)),
-                "carbs": int(round(total_c)),
-                "fat": int(round(total_f)),
-                "kcal": int(round(total_k)),
+                "protein": int(sum(s["macros"]["protein"] for s in sub_list)),
+                "carbs":   int(sum(s["macros"]["carbs"] for s in sub_list)),
+                "fat":     int(sum(s["macros"]["fat"] for s in sub_list)),
+                "kcal":    int(sum(s["macros"]["kcal"] for s in sub_list)),
             }
 
-        # Build meals list
         meals_list = []
         for meal_key, info in recipes_by_meal.items():
             meals_list.append({
@@ -266,7 +279,7 @@ def generate_meal_plan():
                 "recipe_name": info["recipe_name"],
                 "photo": info["photo"],
                 "macros": macros_per_recipe.get(meal_key, {}),
-                "subrecipes": subs_by_meal.get(meal_key, [])
+                "subrecipes": subs_by_meal.get(meal_key, []),
             })
 
         days.append({
