@@ -98,6 +98,17 @@ class OrderService:
             checkout_summary=checkout_summary,
             day_to_meal_plan_day_id=day_to_meal_plan_day_id,
         )
+        # Save promo_code_usage if promo was valid
+        price_info = checkout_summary.get("price_breakdown", {})
+        promo_code_id = price_info.get("promo_code_id")
+        promo_status = price_info.get("promo_code_status")
+
+        if promo_code_id and promo_status == "valid":
+            supabase.table("promo_code_usage").insert({
+                "user_id": user_id,
+                "promo_code_id": promo_code_id
+            }).execute()
+
 
         return {"message": "Order successfully confirmed."}, 200
 

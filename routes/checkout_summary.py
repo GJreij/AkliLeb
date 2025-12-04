@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 import statistics
 from utils.supabase_client import supabase
-
+from services.promo_service import validate_and_apply_promo_code
 checkout_bp = Blueprint("checkout", __name__)
 
 @checkout_bp.route("/checkout_summary", methods=["POST"])
@@ -23,7 +23,7 @@ def checkout_summary():
     data = request.get_json()
     user_id = data.get("user_id")
     plan = data.get("final_plan")
-
+    promo_code = data.get("promo_code")
     if not user_id or not plan:
         return jsonify({"error": "Missing user_id or final_plan"}), 400
 
@@ -93,7 +93,11 @@ def checkout_summary():
             "total_price": round(day_price, 2),
             "meals": len(day.get("meals", []))
         })
-
+    promo_result = validate_and_apply_promo_code(
+    user_id=user_id,
+    promo_code_str=promo_code,
+    total_price=total_price
+    )
     # ------------------------------------------------------------------
     # STEP 3 — Calculate average macros
     # ------------------------------------------------------------------
@@ -121,7 +125,14 @@ def checkout_summary():
             "day_packaging_price": day_packaging_price,
             "recipe_packaging_price": recipe_packaging_price,
             "subrecipe_packaging_price": subrecipe_packaging_price,
-            "total_price": round(total_price, 2),
+            "total_price_before_discount": round(total_price, 2),
+            "discount_amount": promo_result["discount_amount"],
+            "final_price": promo_result["final_price"],
+            "promo_code_status": promo_result["status"],
+            "promo_code_used" : promo_code,
+            "promo_message": promo_result["promo_message"],
+            "promo_code_id": promo_result.get("promo_code_id"),
+
             "daily_breakdown": daily_price_details
         }
     }
