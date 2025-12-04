@@ -34,6 +34,21 @@ def generate_meal_plan():
 
     if end_date < start_date:
         return jsonify({"error": "end_date must be >= start_date"}), 400
+    # -------------------------------------------------------------
+    # CHECK: The date range is not only weekends
+    # -------------------------------------------------------------
+    current = start_date
+    has_weekday = False
+
+    while current <= end_date:
+        if current.weekday() < 5:   # 0–4 = weekdays
+            has_weekday = True
+            break
+        current += timedelta(days=1)
+
+    if not has_weekday:
+        return jsonify({"error": "Selected date range contains only weekend days"}), 400
+
 
     # -------------------------------------------------------------
     # 2. Build meals_map
