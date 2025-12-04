@@ -98,6 +98,23 @@ def checkout_summary():
     promo_code_str=promo_code,
     total_price=total_price
     )
+    # Compute discount ratio (how much to scale each day's price)
+    if promo_result["status"] == "valid" and total_price > 0:
+        discount_ratio = promo_result["final_price"] / total_price
+    else:
+        discount_ratio = 1.0
+
+    # Build a discounted version of daily_price_details
+    discounted_daily_price_details = []
+    for day in daily_price_details:
+        original_day_price = day["total_price"]
+        discounted_day_price = round(original_day_price * discount_ratio, 2)
+
+        discounted_daily_price_details.append({
+            **day,
+            "original_total_price": original_day_price,   # optional, for transparency
+            "total_price": discounted_day_price           # <-- the one used by payment
+        })
     # ------------------------------------------------------------------
     # STEP 3 — Calculate average macros
     # ------------------------------------------------------------------
@@ -133,7 +150,7 @@ def checkout_summary():
             "promo_message": promo_result["promo_message"],
             "promo_code_id": promo_result.get("promo_code_id"),
 
-            "daily_breakdown": daily_price_details
+            "daily_breakdown": discounted_daily_price_details
         }
     }
 
