@@ -5,23 +5,47 @@ class PartnerService:
     def __init__(self):
         self.sb = supabase
 
+    # -------------------------------------------
+    # NEW: Fetch the active commission rate
+    # -------------------------------------------
+    def get_partner_current_commission(self, partner_id):
+        """
+        Returns the active commission rate for a partner.
+        If none exists, falls back to 0.07.
+        """
+        res = (
+            self.sb.table("partner_commission")
+            .select("commission_rate")
+            .eq("partner_id", partner_id)
+            .is_("end_date", None)
+            .order("start_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        rows = res.data or []
+        if rows:
+            return rows[0].get("commission_rate", 0.07)
+
+        return 0.07  # fallback
+
+    # -------------------------------------------
+    # Existing method updated to use dynamic commission
+    # -------------------------------------------
     def get_partner_shares(self, partner_id, this_month=False):
         """
-        Returns a summary of a partner's earnings (7% share).
-
-        Steps:
-          - Fetch all payments linked to this partner.
-          - Join each payment to its meal_plan_day to get the 'date'.
-          - If this_month=True, only include current month dates.
-          - Calculate:
-              * shares_acquired (7% of 'paid')
-              * shares_pending (7% of 'pending')
-              * start_date (earliest meal_plan_day.date)
-              * end_date (latest meal_plan_day.date for pending)
+        Returns a summary of a partner's earnings using dynamic commission.
         """
+        # fetch commission rate
+        commission_rate = self.get_partner_current_commission(partner_id)
+
         now = datetime.utcnow()
         month_start = datetime(now.year, now.month, 1)
-        next_month = datetime(now.year, now.month + 1, 1) if now.month < 12 else datetime(now.year + 1, 1, 1)
+        next_month = (
+            datetime(now.year, now.month + 1, 1)
+            if now.month < 12
+            else datetime(now.year + 1, 1, 1)
+        )
         month_end = next_month - timedelta(days=1)
 
         # --- Step 1: Fetch partner payments
@@ -39,6 +63,7 @@ class PartnerService:
         if not payments:
             return {
                 "partner_id": partner_id,
+                "commission_rate": commission_rate,
                 "shares_acquired": 0.0,
                 "shares_pending": 0.0,
                 "start_date": month_start.date().isoformat() if this_month else None,
@@ -75,7 +100,9 @@ class PartnerService:
                 if d < month_start or d > month_end:
                     continue
 
-            share = (p.get("amount") or 0) * 0.07  # 7% share
+            # --- dynamic commission rate
+            share = (p.get("amount") or 0) * commission_rate
+
             if p.get("status") == "paid":
                 shares_acquired += share
                 paid_dates.append(day_date)
@@ -86,11 +113,11 @@ class PartnerService:
         # --- Step 5: Dates
         all_dates = paid_dates + pending_dates
         start_date = min(all_dates) if all_dates else None
-        # end_date: last date among pending (if any), else last paid
         end_date = max(pending_dates) if pending_dates else (max(all_dates) if all_dates else None)
 
         return {
             "partner_id": partner_id,
+            "commission_rate": commission_rate,
             "shares_acquired": round(shares_acquired, 2),
             "shares_pending": round(shares_pending, 2),
             "start_date": start_date,
