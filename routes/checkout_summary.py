@@ -4,6 +4,21 @@ from utils.supabase_client import supabase
 from services.promo_service import validate_and_apply_promo_code
 checkout_bp = Blueprint("checkout", __name__)
 
+def get_kcal_discount(kcal):
+    min_kcal = 1200
+    max_kcal = 3000
+    max_discount = 0.15
+
+    if kcal <= min_kcal:
+        return 0.0
+    if kcal >= max_kcal:
+        return max_discount
+    
+    ratio = (kcal - min_kcal) / (max_kcal - min_kcal)
+    return ratio * max_discount
+
+
+
 @checkout_bp.route("/checkout_summary", methods=["POST"])
 def checkout_summary():
     """
@@ -80,7 +95,14 @@ def checkout_summary():
             c = meal["macros"].get("carbs", 0)
             f = meal["macros"].get("fat", 0)
 
-            macro_cost = p * protein_price + c * carbs_price + f * fat_price
+            # Compute base macro cost
+            base_macro_cost = p * protein_price + c * carbs_price + f * fat_price
+
+            # Apply kcal-based surcharge percentage
+            discount_pct = get_kcal_discount(totals.get("kcal", 0))
+            macro_cost = base_macro_cost * (1 - discount_pct)
+
+
             recipe_cost = recipe_packaging_price
             sub_pack_cost = len(meal.get("subrecipes", [])) * subrecipe_packaging_price
 
