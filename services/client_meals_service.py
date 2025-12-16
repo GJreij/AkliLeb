@@ -121,10 +121,13 @@ class ClientMealsService:
                 "price": price,
                 "recipes": recipes_payload
             })
+        has_orders = len(days) > 0
+
 
         return {
             "user_id": user_id,
             "from": from_date,
             "to": to_date,
+            "has_orders": has_orders,
             "days": days
         }
