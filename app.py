@@ -9,6 +9,7 @@ from routes.cooking import cooking_bp
 from routes.ingredients import ingredients_bp
 from routes.portioning import portioning_bp
 from routes.packaging import packaging_bp
+from routes.client_meals import client_meals_bp
 import os
 
 app = Flask(__name__)
@@ -24,6 +25,7 @@ app.register_blueprint(ingredients_bp)
 app.register_blueprint(cooking_bp)
 app.register_blueprint(portioning_bp)
 app.register_blueprint(packaging_bp)
+app.register_blueprint(client_meals_bp)
 
 @app.route("/")
 def home():
