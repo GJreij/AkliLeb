@@ -17,20 +17,16 @@ def upcoming_recipes():
 
     today = date.today()
 
-    # --------------------------------------------------
     # Default window: past 3 days → next 7 days
-    # --------------------------------------------------
     if not from_date:
         from_date = (today - timedelta(days=3)).isoformat()
-
     if not to_date:
         to_date = (today + timedelta(days=7)).isoformat()
 
     result = service.get_upcoming_recipes(
-        user_id=user_id,   # keep UUID as string
+        user_id=user_id,
         from_date=from_date,
         to_date=to_date
     )
-
 
     return jsonify(result), 200
