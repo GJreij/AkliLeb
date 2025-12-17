@@ -3,7 +3,7 @@ from utils.supabase_client import supabase
 
 
 def validate_and_apply_promo_code(user_id, promo_code_str, total_price):
-    # CASE 0 — No promo code
+    # 0. No promo code
     if not promo_code_str or promo_code_str.strip() == "":
         return {
             "status": "no_code",
@@ -15,11 +15,13 @@ def validate_and_apply_promo_code(user_id, promo_code_str, total_price):
     promo_code_str = promo_code_str.strip()
 
     # 1. Fetch promo code
-    res = supabase.table("promo_codes") \
-        .select("*") \
-        .eq("code", promo_code_str) \
-        .eq("is_active", True) \
+    res = (
+        supabase.table("promo_codes")
+        .select("*")
+        .eq("code", promo_code_str)
+        .eq("is_active", True)
         .execute()
+    )
 
     if not res.data:
         return {
@@ -52,11 +54,13 @@ def validate_and_apply_promo_code(user_id, promo_code_str, total_price):
         }
 
     # 3. Global usage limit
-    if promo.get("max_global_uses"):
-        usage_res = supabase.table("promo_code_usage") \
-            .select("id", count="exact") \
-            .eq("promo_code_id", promo_id) \
+    if promo.get("max_global_uses") is not None:
+        usage_res = (
+            supabase.table("promo_code_usage")
+            .select("id", count="exact")
+            .eq("promo_code_id", promo_id)
             .execute()
+        )
 
         if usage_res.count >= promo["max_global_uses"]:
             return {
@@ -67,12 +71,14 @@ def validate_and_apply_promo_code(user_id, promo_code_str, total_price):
             }
 
     # 4. Per-user usage limit
-    if promo.get("max_uses_per_user"):
-        user_usage = supabase.table("promo_code_usage") \
-            .select("id", count="exact") \
-            .eq("promo_code_id", promo_id) \
-            .eq("user_id", user_id) \
+    if promo.get("max_uses_per_user") is not None:
+        user_usage = (
+            supabase.table("promo_code_usage")
+            .select("id", count="exact")
+            .eq("promo_code_id", promo_id)
+            .eq("user_id", user_id)
             .execute()
+        )
 
         if user_usage.count >= promo["max_uses_per_user"]:
             return {
@@ -82,13 +88,55 @@ def validate_and_apply_promo_code(user_id, promo_code_str, total_price):
                 "promo_message": "You have already used this promo code the maximum number of times."
             }
 
-    # 5. Minimum order value check
+    # 4.5 Scope validation
+    scope = promo.get("scope", "global")
+
+    if scope == "partner":
+        partner_res = (
+            supabase.table("partner_client_link")
+            .select("partner_id")
+            .eq("client_id", user_id)
+            .order("start_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if (
+            not partner_res.data
+            or partner_res.data[0]["partner_id"] != promo.get("partner_id")
+        ):
+            return {
+                "status": "not_eligible",
+                "discount_amount": 0,
+                "final_price": round(total_price, 2),
+                "promo_message": "This promo code is not valid for your account."
+            }
+
+    elif scope == "user":
+        if promo.get("user_id") != user_id:
+            return {
+                "status": "not_eligible",
+                "discount_amount": 0,
+                "final_price": round(total_price, 2),
+                "promo_message": "This promo code is not valid for your account."
+            }
+
+    elif scope != "global":
+        # Defensive: invalid scope config
+        return {
+            "status": "invalid",
+            "discount_amount": 0,
+            "final_price": round(total_price, 2),
+            "promo_message": "Invalid promo configuration."
+        }
+
+    # 5. Minimum order value
     if promo.get("min_order_value") and total_price < float(promo["min_order_value"]):
         return {
             "status": "order_value_too_low",
             "discount_amount": 0,
             "final_price": round(total_price, 2),
-            "promo_message": f"Minimum order value for this promo is ${promo['min_order_value']}."
+            "promo_message": f"Minimum order value for this promo is €{promo['min_order_value']}."
         }
 
     # 6. Discount calculation
