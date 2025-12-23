@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
-from collections import deque
+from collections import deque, defaultdict
 import random
 
 from utils.supabase_client import supabase
@@ -8,6 +8,17 @@ from services.mealplan_service import optimize_subrecipes
 
 
 mealplan_bp = Blueprint("mealplan", __name__)
+
+
+def _parse_date_yyyy_mm_dd(s: str):
+    return datetime.strptime(s, "%Y-%m-%d").date()
+
+
+def _daterange(d1, d2):
+    cur = d1
+    while cur <= d2:
+        yield cur
+        cur += timedelta(days=1)
 
 
 @mealplan_bp.route("/generate_meal_plan", methods=["POST"])
@@ -27,28 +38,20 @@ def generate_meal_plan():
         return jsonify({"error": "user_id is required"}), 400
 
     try:
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date   = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-    except:
-        return jsonify({"error": "Invalid date format"}), 400
+        start_date = _parse_date_yyyy_mm_dd(start_date_str)
+        end_date = _parse_date_yyyy_mm_dd(end_date_str)
+    except Exception:
+        return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD"}), 400
 
     if end_date < start_date:
         return jsonify({"error": "end_date must be >= start_date"}), 400
+
     # -------------------------------------------------------------
     # CHECK: The date range is not only weekends
     # -------------------------------------------------------------
-    current = start_date
-    has_weekday = False
-
-    while current <= end_date:
-        if current.weekday() < 5:   # 0–4 = weekdays
-            has_weekday = True
-            break
-        current += timedelta(days=1)
-
+    has_weekday = any(d.weekday() < 5 for d in _daterange(start_date, end_date))
     if not has_weekday:
         return jsonify({"error": "Selected date range contains only weekend days"}), 400
-
 
     # -------------------------------------------------------------
     # 2. Build meals_map
@@ -57,6 +60,8 @@ def generate_meal_plan():
 
     if raw_meals:
         meals_map = {k: v for k, v in raw_meals.items() if v in allowed_meal_types}
+        if not meals_map:
+            return jsonify({"error": "Invalid meals map"}), 400
     else:
         meals_map = {
             "breakfast": "breakfast",
@@ -66,28 +71,79 @@ def generate_meal_plan():
         }
 
     # -------------------------------------------------------------
-    # 3. Fetch weekly-menu recipes
+    # 3. Fetch weekly menus that OVERLAP [start_date, end_date]
+    #
+    # Correct overlap condition:
+    #   week_start_date <= end_date  AND  week_end_date >= start_date
     # -------------------------------------------------------------
-    recipes_resp = (
+    weekly_menus_resp = (
         supabase.table("weekly_menu")
-        .select("weekly_menu_recipe(recipe(*))")
-        .gte("week_end_date", str(start_date))
+        .select("""
+            id,
+            week_start_date,
+            week_end_date,
+            weekly_menu_recipe(
+                recipe(*)
+            )
+        """)
         .lte("week_start_date", str(end_date))
+        .gte("week_end_date", str(start_date))
         .execute()
     )
 
-    recipes = []
-    for wm in recipes_resp.data or []:
-        for wmr in wm.get("weekly_menu_recipe", []):
-            recipe = wmr.get("recipe")
-            if recipe:
-                recipes.append(recipe)
+    weekly_menus = weekly_menus_resp.data or []
+    if not weekly_menus:
+        return jsonify({"error": "No weekly menus found for this date range"}), 404
 
-    recipes_by_id = {r["id"]: r for r in recipes}
-    recipes = list(recipes_by_id.values())
+    # -------------------------------------------------------------
+    # 3b. Build DATE -> ALLOWED RECIPES mapping
+    #
+    # This is the HARD GUARANTEE:
+    # recipes can only be chosen for dates in the weekly menu that contains them.
+    # -------------------------------------------------------------
+    allowed_recipe_ids_by_date = defaultdict(set)   # date -> set(recipe_id)
+    recipes_by_id = {}                             # recipe_id -> recipe object
 
-    if not recipes:
-        return jsonify({"error": "No recipes found"}), 404
+    for wm in weekly_menus:
+        try:
+            ws = _parse_date_yyyy_mm_dd(wm["week_start_date"])
+            we = _parse_date_yyyy_mm_dd(wm["week_end_date"])
+        except Exception:
+            continue
+
+        wmr_list = wm.get("weekly_menu_recipe", []) or []
+        recipe_ids_in_this_week = set()
+
+        for wmr in wmr_list:
+            recipe = (wmr or {}).get("recipe")
+            if not recipe or not recipe.get("id"):
+                continue
+            rid = recipe["id"]
+            recipe_ids_in_this_week.add(rid)
+            recipes_by_id[rid] = recipe
+
+        if not recipe_ids_in_this_week:
+            continue
+
+        # mark these recipes as allowed ONLY on dates within this weekly menu
+        for d in _daterange(ws, we):
+            # intersection not required; extra dates outside request are fine
+            allowed_recipe_ids_by_date[d].update(recipe_ids_in_this_week)
+
+    # Only keep recipes we actually have objects for
+    all_recipes = list(recipes_by_id.values())
+    if not all_recipes:
+        return jsonify({"error": "No recipes found inside weekly menus"}), 404
+
+    # Safety: ensure every requested day has some allowed recipes (for weekdays if weekends excluded)
+    for d in _daterange(start_date, end_date):
+        if not include_weekends and d.weekday() >= 5:
+            continue
+        if not allowed_recipe_ids_by_date.get(d):
+            return jsonify({
+                "error": "No recipes available for at least one selected day",
+                "missing_date": str(d),
+            }), 404
 
     # -------------------------------------------------------------
     # 4. Fetch user preferences
@@ -98,14 +154,13 @@ def generate_meal_plan():
         .eq("user_id", user_id)
         .execute()
     )
-
     user_prefs = {p["recipe_id"]: p for p in (prefs_resp.data or [])}
 
     # -------------------------------------------------------------
-    # 5. Score recipes
+    # 5. Score recipes (global scoring pool)
     # -------------------------------------------------------------
     scored_recipes = []
-    for r in recipes:
+    for r in all_recipes:
         rid = r["id"]
         pref = user_prefs.get(rid, {})
 
@@ -113,8 +168,10 @@ def generate_meal_plan():
             continue
 
         score = random.random()
-        if pref.get("like"): score += 2
-        if pref.get("dislike"): score -= 5
+        if pref.get("like"):
+            score += 2
+        if pref.get("dislike"):
+            score -= 5
 
         scored_recipes.append((score, r))
 
@@ -141,8 +198,8 @@ def generate_meal_plan():
     target = macro_target_resp.data[0]
 
     protein_g = float(target.get("protein_g") or 0)
-    carbs_g   = float(target.get("carbs_g") or 0)
-    fat_g     = float(target.get("fat_g") or 0)
+    carbs_g = float(target.get("carbs_g") or 0)
+    fat_g = float(target.get("fat_g") or 0)
 
     computed_kcal = protein_g * 4 + carbs_g * 4 + fat_g * 9
     db_kcal = target.get("kcal_target")
@@ -162,31 +219,26 @@ def generate_meal_plan():
         "kcal": round(kcal),
     }
 
-
     # -------------------------------------------------------------
-    # 7. NEW FAIL-SAFE + VARIETY SYSTEM
+    # 7. Anti-repeat system
     # -------------------------------------------------------------
-    # Independent per-meal anti-repeat
-    recent_recipes_per_meal = {
-        meal_key: deque(maxlen=4)
-        for meal_key in meals_map.keys()
-    }
-
-    # Strong global anti-repeat across all meal slots
+    recent_recipes_per_meal = {meal_key: deque(maxlen=4) for meal_key in meals_map.keys()}
     recent_recipes_global = deque(maxlen=6)
 
-    def get_candidates(meal_type, meal_history):
+    def get_candidates(meal_type, meal_history, allowed_ids_for_day):
         """
-        Multi-layer fail-safe + global anti-repeat guarantee.
-        Always returns a non-empty list.
+        Date-scoped candidate selection:
+        - ALWAYS restrict to allowed_ids_for_day (hard rule).
+        - Preserve your L1..L4 relaxations but never violate allowed_ids_for_day.
         """
 
-        # ---------------------------------------------------------
-        # L1 — strict filtering
-        # ---------------------------------------------------------
+        allowed_ids_for_day = set(allowed_ids_for_day or [])
+
+        # L1 strict
         preferred = [
             r for _, r in scored_recipes
-            if r.get(f"could_be_{meal_type}", False)
+            if r["id"] in allowed_ids_for_day
+            and r.get(f"could_be_{meal_type}", False)
             and r["id"] not in meal_history
             and r["id"] not in recent_recipes_global
             and not user_prefs.get(r["id"], {}).get("dont_include", False)
@@ -194,39 +246,37 @@ def generate_meal_plan():
         if preferred:
             return preferred
 
-        # ---------------------------------------------------------
-        # L2 — allow disliked + repeated in the same meal,
-        # but NOT globally repeated
-        # ---------------------------------------------------------
+        # L2 relaxed (still no global repeat)
         relaxed_without_global = [
             r for _, r in scored_recipes
-            if r.get(f"could_be_{meal_type}", False)
+            if r["id"] in allowed_ids_for_day
+            and r.get(f"could_be_{meal_type}", False)
             and r["id"] not in recent_recipes_global
         ]
         if relaxed_without_global:
             return relaxed_without_global
 
-        # ---------------------------------------------------------
-        # L3 — allow global repetition within meal type
-        # ---------------------------------------------------------
+        # L3 allow global repetition (still within meal type)
         relaxed_mealtype = [
             r for _, r in scored_recipes
-            if r.get(f"could_be_{meal_type}", False)
+            if r["id"] in allowed_ids_for_day
+            and r.get(f"could_be_{meal_type}", False)
         ]
         if relaxed_mealtype:
             return relaxed_mealtype
 
-        # ---------------------------------------------------------
-        # L4 — final resort: any recipe
-        # ---------------------------------------------------------
-        return [r[1] for r in scored_recipes]
-
+        # L4 final resort: any allowed recipe for that day (meal_type ignored)
+        any_allowed = [
+            r for _, r in scored_recipes
+            if r["id"] in allowed_ids_for_day
+        ]
+        return any_allowed
 
     # -------------------------------------------------------------
     # 8. Generate each day
     # -------------------------------------------------------------
-    total_days = (end_date - start_date).days + 1
     days = []
+    total_days = (end_date - start_date).days + 1
 
     for i in range(total_days):
         date = start_date + timedelta(days=i)
@@ -234,15 +284,24 @@ def generate_meal_plan():
         if not include_weekends and date.weekday() >= 5:
             continue
 
+        allowed_ids_today = allowed_recipe_ids_by_date.get(date, set())
+        if not allowed_ids_today:
+            return jsonify({"error": "No recipes available for this day", "date": str(date)}), 404
+
         recipes_by_meal = {}
 
-        # ---------------------------------------------------------
-        # Select recipes with the new global anti-repeat logic
-        # ---------------------------------------------------------
         for meal_key, meal_type in meals_map.items():
             meal_history = recent_recipes_per_meal[meal_key]
 
-            candidates = get_candidates(meal_type, meal_history)
+            candidates = get_candidates(meal_type, meal_history, allowed_ids_today)
+            if not candidates:
+                return jsonify({
+                    "error": "No candidate recipes found for this day/meal type (weekly_menu constraint enforced)",
+                    "date": str(date),
+                    "meal_key": meal_key,
+                    "meal_type": meal_type,
+                }), 404
+
             chosen = random.choice(candidates)
 
             recipes_by_meal[meal_key] = {
@@ -253,17 +312,13 @@ def generate_meal_plan():
                 "photo": chosen.get("photo"),
             }
 
-            # update histories
             meal_history.append(chosen["id"])
             recent_recipes_global.append(chosen["id"])
 
         # ---------------------------------------------------------
         # 9. Macro optimization
         # ---------------------------------------------------------
-        optimized_subs, loss, day_totals = optimize_subrecipes(
-            recipes_by_meal,
-            target_with_kcal
-        )
+        optimized_subs, loss, day_totals = optimize_subrecipes(recipes_by_meal, target_with_kcal)
 
         subs_by_meal = {k: [] for k in recipes_by_meal}
         for sub in optimized_subs:
@@ -280,9 +335,9 @@ def generate_meal_plan():
         for meal_key, sub_list in subs_by_meal.items():
             macros_per_recipe[meal_key] = {
                 "protein": int(sum(s["macros"]["protein"] for s in sub_list)),
-                "carbs":   int(sum(s["macros"]["carbs"] for s in sub_list)),
-                "fat":     int(sum(s["macros"]["fat"] for s in sub_list)),
-                "kcal":    int(sum(s["macros"]["kcal"] for s in sub_list)),
+                "carbs": int(sum(s["macros"]["carbs"] for s in sub_list)),
+                "fat": int(sum(s["macros"]["fat"] for s in sub_list)),
+                "kcal": int(sum(s["macros"]["kcal"] for s in sub_list)),
             }
 
         meals_list = []
