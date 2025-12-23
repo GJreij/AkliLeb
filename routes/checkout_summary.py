@@ -2,7 +2,15 @@ from flask import Blueprint, request, jsonify
 import statistics
 from utils.supabase_client import supabase
 from services.promo_service import validate_and_apply_promo_code
+
 checkout_bp = Blueprint("checkout", __name__)
+
+# -------------------------------
+# CONFIG
+# -------------------------------
+DELIVERY_THRESHOLD = 50
+DELIVERY_PRICE_PER_DAY = 2
+
 
 def get_kcal_discount(kcal):
     min_kcal = 1200
@@ -18,27 +26,13 @@ def get_kcal_discount(kcal):
     return ratio * max_discount
 
 
-
 @checkout_bp.route("/checkout_summary", methods=["POST"])
 def checkout_summary():
-    """
-    Input:
-    {
-      "user_id": "uuid",
-      "final_plan": { ... }   # from /generate_meal_plan or /update_meal_plan
-    }
-    Output:
-    {
-      "user_id": "...",
-      "total_meals": int,
-      "macro_summary": { ... },
-      "price_breakdown": { ... }
-    }
-    """
     data = request.get_json()
     user_id = data.get("user_id")
     plan = data.get("final_plan")
     promo_code = data.get("promo_code")
+
     if not user_id or not plan:
         return jsonify({"error": "Missing user_id or final_plan"}), 400
 
@@ -46,8 +40,10 @@ def checkout_summary():
     if not days:
         return jsonify({"error": "Plan is empty"}), 400
 
+    number_of_days = len(days)
+
     # ------------------------------------------------------------------
-    # STEP 1 — Fetch the most recent macro price from Supabase
+    # STEP 1 — Fetch pricing
     # ------------------------------------------------------------------
     try:
         price_resp = (
@@ -71,18 +67,17 @@ def checkout_summary():
     subrecipe_packaging_price = price_data.get("subrecipe_packaging_price", 0) or 0
 
     # ------------------------------------------------------------------
-    # STEP 2 — Aggregate macros & compute price dynamically
+    # STEP 2 — Aggregate macros & base pricing
     # ------------------------------------------------------------------
     kcal_values, protein_values, carbs_values, fat_values = [], [], [], []
     total_meals = 0
     total_price = 0
-    daily_price_details = []  # keep track of per-day cost breakdown
+    daily_price_details = []
 
     for day in days:
         totals = day.get("totals", {})
         day_price = day_packaging_price
 
-        # Add macros for global averages
         if totals:
             kcal_values.append(totals.get("kcal", 0))
             protein_values.append(totals.get("protein", 0))
@@ -91,23 +86,19 @@ def checkout_summary():
 
         for meal in day.get("meals", []):
             total_meals += 1
+
             p = meal["macros"].get("protein", 0)
             c = meal["macros"].get("carbs", 0)
             f = meal["macros"].get("fat", 0)
 
-            # Compute base macro cost
             base_macro_cost = p * protein_price + c * carbs_price + f * fat_price
-
-            # Apply kcal-based surcharge percentage
             discount_pct = get_kcal_discount(totals.get("kcal", 0))
             macro_cost = base_macro_cost * (1 - discount_pct)
-
 
             recipe_cost = recipe_packaging_price
             sub_pack_cost = len(meal.get("subrecipes", [])) * subrecipe_packaging_price
 
-            meal_price = macro_cost + recipe_cost + sub_pack_cost
-            day_price += meal_price
+            day_price += macro_cost + recipe_cost + sub_pack_cost
 
         total_price += day_price
         daily_price_details.append({
@@ -115,30 +106,46 @@ def checkout_summary():
             "total_price": round(day_price, 2),
             "meals": len(day.get("meals", []))
         })
+
+    # ------------------------------------------------------------------
+    # STEP 3 — Apply promo code
+    # ------------------------------------------------------------------
     promo_result = validate_and_apply_promo_code(
-    user_id=user_id,
-    promo_code_str=promo_code,
-    total_price=total_price
+        user_id=user_id,
+        promo_code_str=promo_code,
+        total_price=total_price
     )
-    # Compute discount ratio (how much to scale each day's price)
+
     if promo_result["status"] == "valid" and total_price > 0:
         discount_ratio = promo_result["final_price"] / total_price
     else:
         discount_ratio = 1.0
 
-    # Build a discounted version of daily_price_details
     discounted_daily_price_details = []
     for day in daily_price_details:
-        original_day_price = day["total_price"]
-        discounted_day_price = round(original_day_price * discount_ratio, 2)
+        original_price = day["total_price"]
+        discounted_price = round(original_price * discount_ratio, 2)
 
         discounted_daily_price_details.append({
             **day,
-            "original_total_price": original_day_price,   # optional, for transparency
-            "total_price": discounted_day_price           # <-- the one used by payment
+            "original_total_price": original_price,
+            "total_price": discounted_price
         })
+
+    final_price_after_discount = promo_result["final_price"]
+
     # ------------------------------------------------------------------
-    # STEP 3 — Calculate average macros
+    # STEP 4 — Delivery fee logic ✅
+    # ------------------------------------------------------------------
+    if final_price_after_discount < DELIVERY_THRESHOLD:
+        delivery_fee = DELIVERY_PRICE_PER_DAY * number_of_days
+    else:
+        delivery_fee = 0
+
+    final_price_with_delivery = round(final_price_after_discount + delivery_fee, 2)
+
+    # ------------------------------------------------------------------
+    # STEP 5 — Averages
     # ------------------------------------------------------------------
     avg_kcal = round(statistics.mean(kcal_values), 1) if kcal_values else 0
     avg_protein = round(statistics.mean(protein_values), 1) if protein_values else 0
@@ -146,7 +153,7 @@ def checkout_summary():
     avg_fat = round(statistics.mean(fat_values), 1) if fat_values else 0
 
     # ------------------------------------------------------------------
-    # STEP 4 — Build response JSON
+    # STEP 6 — Response
     # ------------------------------------------------------------------
     summary = {
         "user_id": user_id,
@@ -164,11 +171,23 @@ def checkout_summary():
             "day_packaging_price": day_packaging_price,
             "recipe_packaging_price": recipe_packaging_price,
             "subrecipe_packaging_price": subrecipe_packaging_price,
+
             "total_price_before_discount": round(total_price, 2),
             "discount_amount": promo_result["discount_amount"],
-            "final_price": promo_result["final_price"],
+            "final_price_before_delivery": final_price_after_discount,
+
+            "delivery": {
+                "fee_per_day": DELIVERY_PRICE_PER_DAY,
+                "number_of_days": number_of_days,
+                "delivery_fee": delivery_fee,
+                "free_delivery_threshold": DELIVERY_THRESHOLD,
+                "is_free_delivery": delivery_fee == 0
+            },
+
+            "final_price": final_price_with_delivery,
+
             "promo_code_status": promo_result["status"],
-            "promo_code_used" : promo_code,
+            "promo_code_used": promo_code,
             "promo_message": promo_result["promo_message"],
             "promo_code_id": promo_result.get("promo_code_id"),
 
