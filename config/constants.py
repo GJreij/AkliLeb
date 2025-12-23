@@ -12,3 +12,9 @@ KCAL_PER_G = {
     "carbs": 4,
     "fat": 9,
 }
+# Reasonable macro percentage ranges (can evolve later)
+MACRO_RANGES = {
+    "protein": (0.10, 0.55),  # 10–45%
+    "carbs": (0.20, 0.65),    # 20–65%
+    "fat": (0.15, 0.40),      # 15–40%
+}
