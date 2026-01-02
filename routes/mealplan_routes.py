@@ -11,6 +11,44 @@ mealplan_bp = Blueprint("mealplan", __name__)
 def _parse_date_yyyy_mm_dd(s: str):
     return datetime.strptime(s, "%Y-%m-%d").date()
 
+
+@mealplan_bp.route("/check_meal_plan_conflict", methods=["POST"])
+def check_meal_plan_conflict():
+    data = request.get_json() or {}
+    user_id = data.get("user_id")
+    start_date_str = data.get("start_date")
+    end_date_str = data.get("end_date")
+
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    try:
+        start_date = _parse_date_yyyy_mm_dd(start_date_str)
+        end_date = _parse_date_yyyy_mm_dd(end_date_str)
+    except Exception:
+        return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD"}), 400
+
+    if end_date < start_date:
+        return jsonify({"error": "end_date must be >= start_date"}), 400
+
+    # Find any existing meal_plan that overlaps the selected range
+    # overlap: existing.start_date <= end_date AND existing.end_date >= start_date
+    resp = (
+        supabase.table("meal_plan")
+        .select("id, start_date, end_date, created_at")
+        .eq("user_id", user_id)
+        .lte("start_date", str(end_date))
+        .gte("end_date", str(start_date))
+        .execute()
+    )
+
+    conflicts = resp.data or []
+
+    return jsonify({
+        "has_conflict": len(conflicts) > 0,
+        "conflicts": conflicts,  # list of overlapping plans (ids + ranges)
+        "selected": {"start_date": str(start_date), "end_date": str(end_date)}
+    }), 200
 def _daterange(d1, d2):
     cur = d1
     while cur <= d2:
