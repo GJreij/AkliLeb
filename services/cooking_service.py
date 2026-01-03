@@ -118,6 +118,88 @@ def get_cooking_overview(start_date, end_date, filters):
 
     mpdr_ids = [x["id"] for x in mpdr]
     recipe_ids = list({x["recipe_id"] for x in mpdr})
+    # =====================================================
+    # 3.5️⃣ Fetch deliveries (to know which users are in this date range)
+    # =====================================================
+    deliveries_for_range = (
+        supabase.table("deliveries")
+        .select("meal_plan_day_id, user_id")
+        .in_("meal_plan_day_id", mpd_ids)
+        .execute()
+        .data
+    ) or []
+
+    user_ids = sorted({d["user_id"] for d in deliveries_for_range if d.get("user_id")})
+    # If there are no users (e.g., internal/testing days), comments will be empty.
+    # =====================================================
+    # 3.6️⃣ Fetch recipe comments from user_recipe_preferences
+    # =====================================================
+    prefs = []
+    if user_ids and recipe_ids:
+        prefs = (
+            supabase.table("user_recipe_preferences")
+            .select("recipe_id, user_id, comment, updated_at, created_at")
+            .in_("recipe_id", recipe_ids)
+            .in_("user_id", user_ids)
+            .not_.is_("comment", None)
+            .execute()
+            .data
+        ) or []
+
+    # (Optional) keep only latest comment per (recipe_id, user_id)
+    def _ts(p):
+        return p.get("updated_at") or p.get("created_at") or ""
+
+    prefs.sort(key=_ts, reverse=True)
+
+    latest_pref_by_pair = {}
+    for p in prefs:
+        key = (p.get("recipe_id"), p.get("user_id"))
+        if key not in latest_pref_by_pair:
+            latest_pref_by_pair[key] = p
+
+    prefs = list(latest_pref_by_pair.values())
+
+    # =====================================================
+        # =====================================================
+    # 3.7️⃣ Fetch user display names from "user"
+    # =====================================================
+    users = []
+    if user_ids:
+        users = (
+            supabase.table("user")
+            .select("id, name, last_name")
+            .in_("id", user_ids)
+            .execute()
+            .data
+        ) or []
+
+    def _display_name(u):
+        if not u:
+            return "Unknown"
+        fn = (u.get("name") or "").strip()
+        ln = (u.get("last_name") or "").strip()
+        full = (fn + " " + ln).strip()
+        return full or fn or ln or "Unknown"
+
+    user_name_map = {u["id"]: _display_name(u) for u in users if u.get("id")}
+
+
+    # Group comments by recipe_id for fast lookup later
+    comments_by_recipe = defaultdict(list)
+    for p in prefs:
+        rid = p.get("recipe_id")
+        uid = p.get("user_id")
+        comments_by_recipe[rid].append(
+            {
+                "user_id": uid,
+                "name": user_name_map.get(uid, "Unknown"),
+                "comment": p.get("comment"),
+                "updated_at": p.get("updated_at"),
+                "created_at": p.get("created_at"),
+            }
+        )
+
 
     # =====================================================
     # 4️⃣ Recipes
@@ -348,6 +430,7 @@ def get_cooking_overview(start_date, end_date, filters):
                 "progress": recipe_progress,
                 "ingredients_needed": ingredient_list,
                 "subrecipes": subrecipe_list,
+                "comments": comments_by_recipe.get(recipe_id, []),
             }
         )
 
