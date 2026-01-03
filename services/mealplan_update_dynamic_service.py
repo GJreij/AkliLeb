@@ -257,14 +257,20 @@ def apply_changes_and_optimize(
         if len(deleted_meal_types_for_day) >= 4:
             continue
 
-        # 5. Adjust macro target based on reduced percentage, but start from
-        #    the day's baseline (which can already be reduced from a previous update).
+        # 5. Adjust macro target based on reduced percentage
         adjusted_target = copy.deepcopy(baseline_target)
+
         if reduce_macros_pct > 0:
             pct = min(reduce_macros_pct, 1.0)
+
             for key in ["protein_g", "carbs_g", "fat_g"]:
                 if adjusted_target.get(key) is not None:
                     adjusted_target[key] = round(adjusted_target[key] * (1 - pct), 2)
+
+            # 🔴 THIS WAS MISSING
+            if adjusted_target.get("kcal") is not None:
+                adjusted_target["kcal"] = round(adjusted_target["kcal"] * (1 - pct), 2)
+
 
         # 6. Prepare recipes_by_meal for optimization
         recipes_by_meal: Dict[str, Dict[str, Any]] = {
@@ -283,8 +289,10 @@ def apply_changes_and_optimize(
 
         # 7. Re-optimize macros for this day using the current adjusted target
         optimized_subs, loss, day_totals = optimize_subrecipes(
-            recipes_by_meal, adjusted_target
-        )
+        recipes_by_meal,
+        adjusted_target,
+        allow_under_kcal=(reduce_macros_pct > 0)
+            )
 
         # 8. Group optimized subrecipes back by meal_key
         subs_by_meal: Dict[str, List[Dict[str, Any]]] = {
