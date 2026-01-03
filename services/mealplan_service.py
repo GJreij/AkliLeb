@@ -37,6 +37,7 @@ def get_recipe_subrecipes(recipe_id: int) -> List[Dict[str, Any]]:
 def optimize_subrecipes(
     recipes_by_meal: Dict[str, Dict[str, Any]],
     macro_target: Dict[str, float],
+    allow_under_kcal: bool = False,  # ✅ NEW: when eating out, don't enforce kcal floor
 ) -> Tuple[List[Dict[str, Any]], float, Dict[str, Any]]:
     """
     recipes_by_meal:
@@ -48,8 +49,9 @@ def optimize_subrecipes(
     macro_target:
       { "protein_g": 150, "carbs_g": 200, "fat_g": 60, "kcal": 2000? }
 
-    Returns:
-      optimized_subs, total_error, totals
+    allow_under_kcal:
+      If True, we keep an upper bound on kcal but remove the lower kcal bound.
+      This is important for "eat outside / reserve calories" days.
     """
 
     # -------------------------------------------------------------
@@ -86,7 +88,9 @@ def optimize_subrecipes(
             })
 
     if not all_subs:
-        return [], 0.0, {"protein": 0, "carbs": 0, "fat": 0, "kcal": 0, "tolerance_used": None}
+        return [], 0.0, {
+            "protein": 0, "carbs": 0, "fat": 0, "kcal": 0, "tolerance_used": None
+        }
 
     # Targets
     P_t = float(macro_target.get("protein_g") or 0.0)
@@ -96,9 +100,11 @@ def optimize_subrecipes(
     # Use provided kcal if present, else compute
     kcal_t = float(macro_target.get("kcal") or (4 * (P_t + C_t) + 9 * F_t))
 
-    def safe_fallback():
+    def safe_fallback() -> Tuple[List[Dict[str, Any]], float, Dict[str, Any]]:
         """
-        Guaranteed to be in-scope and non-crashing.
+        Guaranteed non-crashing fallback.
+
+        ✅ Change: if allow_under_kcal=True, do NOT force kcal up to a floor.
         """
         servings_safe = {i: 1 for i in range(len(all_subs))}
 
@@ -127,14 +133,15 @@ def optimize_subrecipes(
             else:
                 break
 
-        # Increase kcal to reach 80% kcal floor
-        while K < target_K_low:
-            best = max(range(len(all_subs)), key=lambda i: all_subs[i]["macros"]["kcal"])
-            if servings_safe[best] < all_subs[best]["max_serving"]:
-                servings_safe[best] += 1
-                P, C, F, K = totals(servings_safe)
-            else:
-                break
+        # ✅ Only enforce kcal floor if NOT allowed under kcal
+        if not allow_under_kcal:
+            while K < target_K_low:
+                best = max(range(len(all_subs)), key=lambda i: all_subs[i]["macros"]["kcal"])
+                if servings_safe[best] < all_subs[best]["max_serving"]:
+                    servings_safe[best] += 1
+                    P, C, F, K = totals(servings_safe)
+                else:
+                    break
 
         optimized_safe = []
         for i, s in enumerate(all_subs):
@@ -239,9 +246,15 @@ def optimize_subrecipes(
             prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
             prob += kcal_by_type["dinner"] <= NO_LUNCH_YES_DINNER_PCT * kcal_t
 
-        # Kcal tolerance
-        prob += total_K >= (1 - tol) * kcal_t
+        # -------------------------------------------------------------
+        # ✅ Kcal constraints (corrected)
+        # -------------------------------------------------------------
+        # Always keep an upper bound (avoid kcal exploding)
         prob += total_K <= (1 + tol) * kcal_t
+
+        # Only enforce lower bound on normal days
+        if not allow_under_kcal:
+            prob += total_K >= (1 - tol) * kcal_t
 
         # Objective
         prob += (WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F)
@@ -281,8 +294,10 @@ def optimize_subrecipes(
                     "macros": optimized_macros,
                 })
 
-            total_error = float(value(WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F))
+            total_error = float(value(
+                WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F
+            ))
             return optimized, total_error, day_totals
 
-    # No feasible solution -> safe fallback (now guaranteed to work)
+    # No feasible solution -> safe fallback
     return safe_fallback()
