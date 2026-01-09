@@ -291,32 +291,27 @@ def generate_meal_plan():
     recent_recipes_global = deque(maxlen=10)
     meal_history = deque(maxlen=20)
 
-    def _filter_recipes_for_meal_type(scored, meal_type, recent_global, meal_hist, allowed_ids_today):
-        # candidates must:
-        # - match meal_type flag
-        # - not be recently used (soft)
-        # - be allowed by weekly_menu for that date (hard)
+    def _filter_recipes_for_meal_type(scored, meal_type, recent_global, meal_hist, allowed_ids_today, used_today):
         candidates = []
         for _, r in scored:
             rid = r["id"]
             if rid not in allowed_ids_today:
                 continue
-
-            # recipe booleans like could_be_breakfast, could_be_lunch...
+            if rid in used_today:                 # <- HARD block same-day duplicates
+                continue
             if not r.get(f"could_be_{meal_type}", False):
                 continue
-
-            # soft filtering on repeats
             if rid in recent_global or rid in meal_hist:
                 continue
-
             candidates.append(r)
 
-        # if too strict, relax repeat constraint
+        # relax repeat constraint, BUT still keep same-day uniqueness
         if not candidates:
             for _, r in scored:
                 rid = r["id"]
                 if rid not in allowed_ids_today:
+                    continue
+                if rid in used_today:             # <- still enforced here
                     continue
                 if not r.get(f"could_be_{meal_type}", False):
                     continue
@@ -324,25 +319,57 @@ def generate_meal_plan():
 
         return candidates
 
+
     for date in available_dates:
         allowed_ids_today = allowed_recipe_ids_by_date.get(date, set())
 
         recipes_by_meal = {}
+        used_today = set()  # HARD rule: no recipe reused within the same day
 
-        # pick one recipe per meal_key
+        # ---------------------------------------------------------
+        # 1. Pick recipes per meal (unique within day)
+        # ---------------------------------------------------------
         for meal_key, meal_type in meals_map.items():
-            candidates = _filter_recipes_for_meal_type(
-                scored_recipes, meal_type, recent_recipes_global, meal_history, allowed_ids_today
-            )
+            # strict pass: avoid recent + avoid same-day
+            candidates = []
+            for _, r in scored_recipes:
+                rid = r["id"]
+
+                if rid not in allowed_ids_today:
+                    continue
+                if rid in used_today:
+                    continue
+                if not r.get(f"could_be_{meal_type}", False):
+                    continue
+                if rid in recent_recipes_global or rid in meal_history:
+                    continue
+
+                candidates.append(r)
+
+            # relaxed pass: allow repeats across days but NOT within day
+            if not candidates:
+                for _, r in scored_recipes:
+                    rid = r["id"]
+
+                    if rid not in allowed_ids_today:
+                        continue
+                    if rid in used_today:
+                        continue
+                    if not r.get(f"could_be_{meal_type}", False):
+                        continue
+
+                    candidates.append(r)
+
             if not candidates:
                 return jsonify({
-                    "error": "No candidate recipes found for this day/meal type (weekly_menu constraint enforced)",
+                    "error": "Not enough unique recipes for this day",
                     "date": str(date),
                     "meal_key": meal_key,
                     "meal_type": meal_type,
                 }), 404
 
             chosen = random.choice(candidates)
+
             recipes_by_meal[meal_key] = {
                 "recipe_id": chosen["id"],
                 "meal_key": meal_key,
@@ -351,32 +378,51 @@ def generate_meal_plan():
                 "photo": chosen.get("photo"),
             }
 
+            used_today.add(chosen["id"])
             meal_history.append(chosen["id"])
             recent_recipes_global.append(chosen["id"])
 
-        optimized_subs, loss, day_totals = optimize_subrecipes(recipes_by_meal, target_with_kcal)
+        # ---------------------------------------------------------
+        # 2. Optimize subrecipes to hit macro target
+        # ---------------------------------------------------------
+        optimized_subs, loss, day_totals = optimize_subrecipes(
+            recipes_by_meal,
+            target_with_kcal
+        )
 
+        # ---------------------------------------------------------
+        # 3. Group subrecipes by meal
+        # ---------------------------------------------------------
         subs_by_meal = {k: [] for k in recipes_by_meal}
+
         for sub in optimized_subs:
-            mk = sub["meal_name"]
-            if mk in subs_by_meal:
-                subs_by_meal[mk].append({
+            meal_name = sub["meal_name"]
+            if meal_name in subs_by_meal:
+                subs_by_meal[meal_name].append({
                     "subrecipe_id": sub["subrecipe_id"],
                     "name": sub["name"],
                     "servings": sub["servings"],
                     "macros": sub["macros"],
                 })
 
+        # ---------------------------------------------------------
+        # 4. Compute macros per meal
+        # ---------------------------------------------------------
         macros_per_recipe = {}
-        for meal_key, sub_list in subs_by_meal.items():
+
+        for meal_key, subs in subs_by_meal.items():
             macros_per_recipe[meal_key] = {
-                "protein": int(sum(s["macros"]["protein"] for s in sub_list)),
-                "carbs": int(sum(s["macros"]["carbs"] for s in sub_list)),
-                "fat": int(sum(s["macros"]["fat"] for s in sub_list)),
-                "kcal": int(sum(s["macros"]["kcal"] for s in sub_list)),
+                "protein": int(sum(s["macros"]["protein"] for s in subs)),
+                "carbs": int(sum(s["macros"]["carbs"] for s in subs)),
+                "fat": int(sum(s["macros"]["fat"] for s in subs)),
+                "kcal": int(sum(s["macros"]["kcal"] for s in subs)),
             }
 
+        # ---------------------------------------------------------
+        # 5. Assemble meals list
+        # ---------------------------------------------------------
         meals_list = []
+
         for meal_key, info in recipes_by_meal.items():
             meals_list.append({
                 "meal_key": meal_key,
@@ -388,6 +434,9 @@ def generate_meal_plan():
                 "subrecipes": subs_by_meal.get(meal_key, []),
             })
 
+        # ---------------------------------------------------------
+        # 6. Push day into response
+        # ---------------------------------------------------------
         days.append({
             "date": str(date),
             "weekday": date.weekday(),
@@ -396,6 +445,7 @@ def generate_meal_plan():
             "totals": day_totals,
             "meals": meals_list,
         })
+
 
     return jsonify({
         "user_id": user_id,
