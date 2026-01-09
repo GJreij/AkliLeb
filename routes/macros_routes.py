@@ -10,7 +10,7 @@ macros_bp = Blueprint("macros", __name__)
 # Defaults for estimation
 # -------------------------------
 DEFAULT_MEALS_PER_DAY = 3
-DEFAULT_AVG_SUBRECIPES_PER_MEAL = 2.5
+DEFAULT_AVG_SUBRECIPES_PER_MEAL = 3
 DEFAULT_APPLY_KCAL_DISCOUNT = True
 
 
