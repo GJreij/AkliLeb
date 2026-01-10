@@ -1,16 +1,16 @@
-# routes/get_available_recipes.py
+# routes/available_recipes.py
 
 from flask import Blueprint, request, jsonify
-from services.weekly_menu_service import WeeklyMenuService
+from services.menu_service import MenuService
 
-get_available_recipes_bp = Blueprint("get_available_recipes", __name__)
-weekly_menu_service = WeeklyMenuService()
+available_recipes_bp = Blueprint("available_recipes", __name__)
+menu_service = MenuService()
 
 
-@get_available_recipes_bp.route("/available_recipes_for_date", methods=["POST"])
+@available_recipes_bp.route("/available_recipes_for_date", methods=["POST"])
 def available_recipes_for_date():
     """
-    Returns recipe_ids available to cook on a given date.
+    Return recipe_ids available for a given date (for meal change UI).
 
     Required JSON body:
       - date: "YYYY-MM-DD"
@@ -24,21 +24,16 @@ def available_recipes_for_date():
         date_str = payload.get("date")
         tenant_id = payload.get("tenant_id")  # optional
 
-        missing = []
         if not date_str:
-            missing.append("date")
-
-        if missing:
             return jsonify({
                 "error": "Missing required fields",
-                "missing_fields": missing
+                "missing_fields": ["date"]
             }), 400
 
-        result, status_code = weekly_menu_service.get_available_recipes_for_date(
+        result, status_code = menu_service.get_available_recipe_ids_for_date(
             date_str=date_str,
-            tenant_id=tenant_id
+            tenant_id=tenant_id,
         )
-
 
         return jsonify(result), status_code
 
