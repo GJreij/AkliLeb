@@ -136,16 +136,21 @@ def checkout_summary():
     final_price_after_discount = promo_result["final_price"]
 
     # ------------------------------------------------------------------
-    # STEP 4 — Delivery fee logic ✅ (per-day minimum)
+    # STEP 4 — Delivery fee logic ✅ (per-day minimum, based on PRE-discount)
     # ------------------------------------------------------------------
     delivery_days = 0
     delivery_fee = 0
 
     final_daily_breakdown = []
     for day in discounted_daily_price_details:
-        day_total = day["total_price"]
+        # discounted day total (after promo)
+        discounted_total = day["total_price"]
 
-        needs_delivery = day_total < DELIVERY_DAY_MINIMUM
+        # original day total (pre-promo) — you already stored it above
+        original_total = day["original_total_price"]
+
+        # ✅ eligibility based on PRE-discount total
+        needs_delivery = original_total < DELIVERY_DAY_MINIMUM
         day_delivery_fee = delivery_price_per_day if needs_delivery else 0
 
         if needs_delivery:
@@ -156,9 +161,11 @@ def checkout_summary():
             **day,
             "delivery_applied": needs_delivery,
             "delivery_fee": round(day_delivery_fee, 2),
+            "total_price_with_delivery": round(discounted_total + day_delivery_fee, 2),  # optional, very useful for UX
         })
 
     final_price_with_delivery = round(final_price_after_discount + delivery_fee, 2)
+
 
 
     # ------------------------------------------------------------------
@@ -194,13 +201,12 @@ def checkout_summary():
             "final_price_before_delivery": final_price_after_discount,
 
             "delivery": {
-            "fee_per_day": delivery_price_per_day,
-            "minimum_per_day_for_free_delivery": DELIVERY_DAY_MINIMUM,
-            "delivery_days": delivery_days,
-            "delivery_fee": round(delivery_fee, 2),
-            "is_free_delivery": delivery_fee == 0
-         },
-
+                "fee_per_day": delivery_price_per_day,
+                "minimum_per_day_for_free_delivery": DELIVERY_DAY_MINIMUM,
+                "delivery_days": delivery_days,
+                "delivery_fee": round(delivery_fee, 2),
+                "is_free_delivery": delivery_fee == 0
+            },
 
             "final_price": final_price_with_delivery,
 
@@ -209,7 +215,8 @@ def checkout_summary():
             "promo_message": promo_result["promo_message"],
             "promo_code_id": promo_result.get("promo_code_id"),
 
-            "daily_breakdown": discounted_daily_price_details
+            # ✅ This must be the final breakdown including delivery flags/fees
+            "daily_breakdown": final_daily_breakdown
         }
     }
 
