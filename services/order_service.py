@@ -501,9 +501,18 @@ class OrderService:
 
         for day_data in daily_breakdown:
             date_str = day_data.get("date")
-            day_total = day_data.get("total_price", 0)
+
+            # ✅ Always charge the final amount for that day (incl. delivery)
+            amount = day_data.get("total_price_with_delivery")
+            if amount is None:
+                # backward-compatible fallback
+                amount = (day_data.get("total_price") or 0) + (day_data.get("delivery_fee") or 0)
+
+            amount = round(float(amount), 2)
 
             meal_plan_day_id = day_to_meal_plan_day_id.get(date_str)
+            if not meal_plan_day_id:
+                raise ValueError(f"Missing meal_plan_day_id for date {date_str}")
 
             (
                 self.sb.table("payment")
@@ -511,7 +520,7 @@ class OrderService:
                     {
                         "ordered_user_id": ordered_user_id,
                         "partner_at_order": partner_id,
-                        "amount": day_total,
+                        "amount": amount,
                         "status": "pending",
                         "provider": None,
                         "provider_payment_id": None,
@@ -522,3 +531,4 @@ class OrderService:
                 )
                 .execute()
             )
+

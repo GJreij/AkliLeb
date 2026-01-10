@@ -88,9 +88,11 @@ def checkout_summary():
         for meal in day.get("meals", []):
             total_meals += 1
 
-            p = meal["macros"].get("protein", 0)
-            c = meal["macros"].get("carbs", 0)
-            f = meal["macros"].get("fat", 0)
+            macros = meal.get("macros") or {}
+            p = macros.get("protein", 0) or 0
+            c = macros.get("carbs", 0) or 0
+            f = macros.get("fat", 0) or 0
+
 
             base_macro_cost = p * protein_price + c * carbs_price + f * fat_price
             discount_pct = get_kcal_discount(totals.get("kcal", 0))
