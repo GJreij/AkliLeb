@@ -8,9 +8,9 @@ class WeeklyMenuService:
     def __init__(self):
         self.sb = supabase
 
-    def get_available_recipes_for_date(self, date_str: str, tenant_id=None):
+    def get_available_recipe_ids_for_date(self, date_str: str, tenant_id=None):
         """
-        Returns full recipe rows available for a given date.
+        Returns recipe_ids available for a given date.
         Date filtering is done ONLY on weekly_menu.
         """
 
@@ -23,7 +23,7 @@ class WeeklyMenuService:
                 "date_received": date_str
             }, 400
 
-        # 2) Weekly menus covering this date
+        # 2) Fetch weekly_menu ids matching the date
         q = (
             self.sb.table("weekly_menu")
             .select("id")
@@ -41,47 +41,33 @@ class WeeklyMenuService:
             return {
                 "date": date_str,
                 "tenant_id": tenant_id,
-                "recipes": [],
-                "count": 0
+                "recipe_ids": [],
+                "count": 0,
+                "message": "No weekly menu found for this date."
             }, 200
 
-        weekly_menu_ids = [m["id"] for m in menus]
+        weekly_menu_ids = [m["id"] for m in menus if m.get("id")]
 
-        # 3) Get recipe_ids from weekly_menu_recipe
-        wmr_res = (
+        # 3) Fetch recipes linked to those menus
+        recipe_res = (
             self.sb.table("weekly_menu_recipe")
             .select("recipe_id")
             .in_("weekly_menu_id", weekly_menu_ids)
             .execute()
         )
 
-        recipe_ids = list({
+        rows = recipe_res.data or []
+
+        recipe_ids = sorted({
             r["recipe_id"]
-            for r in (wmr_res.data or [])
+            for r in rows
             if r.get("recipe_id") is not None
         })
-
-        if not recipe_ids:
-            return {
-                "date": date_str,
-                "tenant_id": tenant_id,
-                "recipes": [],
-                "count": 0
-            }, 200
-
-        # 4) Fetch FULL recipe rows
-        recipes_res = (
-            self.sb.table("recipe")
-            .select("*")
-            .in_("id", recipe_ids)
-            .execute()
-        )
-
-        recipes = recipes_res.data or []
 
         return {
             "date": date_str,
             "tenant_id": tenant_id,
-            "recipes": recipes,
-            "count": len(recipes)
+            "weekly_menu_ids": weekly_menu_ids,
+            "recipe_ids": recipe_ids,
+            "count": len(recipe_ids),
         }, 200
