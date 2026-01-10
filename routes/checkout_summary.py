@@ -8,8 +8,7 @@ checkout_bp = Blueprint("checkout", __name__)
 # -------------------------------
 # CONFIG
 # -------------------------------
-DELIVERY_THRESHOLD = 50
-DELIVERY_PRICE_PER_DAY = 2
+DELIVERY_DAY_MINIMUM = 25  # if a given day's total < 25, delivery applies for that day
 
 
 def get_kcal_discount(kcal):
@@ -65,6 +64,8 @@ def checkout_summary():
     day_packaging_price = price_data.get("day_packaging_price", 0) or 0
     recipe_packaging_price = price_data.get("recipe_packaging_price", 0) or 0
     subrecipe_packaging_price = price_data.get("subrecipe_packaging_price", 0) or 0
+    delivery_price_per_day = price_data.get("delivery_price", 0) or 0
+
 
     # ------------------------------------------------------------------
     # STEP 2 — Aggregate macros & base pricing
@@ -135,14 +136,30 @@ def checkout_summary():
     final_price_after_discount = promo_result["final_price"]
 
     # ------------------------------------------------------------------
-    # STEP 4 — Delivery fee logic ✅
+    # STEP 4 — Delivery fee logic ✅ (per-day minimum)
     # ------------------------------------------------------------------
-    if final_price_after_discount < DELIVERY_THRESHOLD:
-        delivery_fee = DELIVERY_PRICE_PER_DAY * number_of_days
-    else:
-        delivery_fee = 0
+    delivery_days = 0
+    delivery_fee = 0
+
+    final_daily_breakdown = []
+    for day in discounted_daily_price_details:
+        day_total = day["total_price"]
+
+        needs_delivery = day_total < DELIVERY_DAY_MINIMUM
+        day_delivery_fee = delivery_price_per_day if needs_delivery else 0
+
+        if needs_delivery:
+            delivery_days += 1
+            delivery_fee += day_delivery_fee
+
+        final_daily_breakdown.append({
+            **day,
+            "delivery_applied": needs_delivery,
+            "delivery_fee": round(day_delivery_fee, 2),
+        })
 
     final_price_with_delivery = round(final_price_after_discount + delivery_fee, 2)
+
 
     # ------------------------------------------------------------------
     # STEP 5 — Averages
@@ -177,12 +194,13 @@ def checkout_summary():
             "final_price_before_delivery": final_price_after_discount,
 
             "delivery": {
-                "fee_per_day": DELIVERY_PRICE_PER_DAY,
-                "number_of_days": number_of_days,
-                "delivery_fee": delivery_fee,
-                "free_delivery_threshold": DELIVERY_THRESHOLD,
-                "is_free_delivery": delivery_fee == 0
-            },
+            "fee_per_day": delivery_price_per_day,
+            "minimum_per_day_for_free_delivery": DELIVERY_DAY_MINIMUM,
+            "delivery_days": delivery_days,
+            "delivery_fee": round(delivery_fee, 2),
+            "is_free_delivery": delivery_fee == 0
+         },
+
 
             "final_price": final_price_with_delivery,
 
