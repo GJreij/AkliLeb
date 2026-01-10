@@ -34,10 +34,11 @@ def available_recipes_for_date():
                 "missing_fields": missing
             }), 400
 
-        result, status_code = weekly_menu_service.get_available_recipe_ids_for_date(
+        result, status_code = weekly_menu_service.get_available_recipes_for_date(
             date_str=date_str,
             tenant_id=tenant_id
         )
+
 
         return jsonify(result), status_code
 
