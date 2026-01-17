@@ -19,7 +19,6 @@ async function sendEmail(subject: string, html: string) {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      // IMPORTANT: replace with a verified sender in Resend
       from: "Akli <onboarding@resend.dev>",
       to: [ADMIN_EMAIL],
       subject,
@@ -27,22 +26,37 @@ async function sendEmail(subject: string, html: string) {
     }),
   });
 
+  const text = await res.text();
+  console.log("Resend response status:", res.status);
+  console.log("Resend response body:", text);
+
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(`Resend error ${res.status}: ${text}`);
   }
 }
 
 
+
 serve(async (req) => {
   console.log("WEBHOOK HIT");
-  // Optional webhook secret check
-  if (WEBHOOK_SECRET) {
-    const got = req.headers.get("x-webhook-secret");
-    if (got !== WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401 });
+
+  const gotSecret = req.headers.get("x-webhook-secret");
+  console.log("headers x-webhook-secret:", gotSecret);
+
+  if (WEBHOOK_SECRET && gotSecret !== WEBHOOK_SECRET) {
+    console.log("Webhook secret mismatch");
+    return new Response("Unauthorized", { status: 401 });
   }
 
   const payload = await req.json();
+  console.log("headers x-webhook-secret:", req.headers.get("x-webhook-secret"));
+
+  console.log("payload.type:", payload?.type);
+  console.log("payload.schema:", payload?.schema);
+  console.log("payload.table:", payload?.table);
+
+  console.log("record.onboarding:", payload?.record?.onboarding);
+  console.log("old_record.onboarding:", payload?.old_record?.onboarding);
 
   // Supabase Database Webhooks payload usually contains:
   // { type: 'INSERT'|'UPDATE'|'DELETE', schema, table, record, old_record }
@@ -69,6 +83,8 @@ serve(async (req) => {
         <li><b>Created at:</b> ${record?.created_at ?? ""}</li>
       </ul>
     `;
+    console.log("About to send email, subject:", subject);
+
     await sendEmail(subject, html);
     return new Response("ok", { status: 200 });
   }
@@ -93,6 +109,8 @@ serve(async (req) => {
           <li><b>Mode:</b> ${mode}</li>
         </ul>
       `;
+      console.log("About to send email, subject:", subject);
+
       await sendEmail(subject, html);
     }
 
