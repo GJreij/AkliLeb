@@ -106,6 +106,7 @@ serve(async (req) => {
           <li><b>Name:</b> ${record?.name ?? ""} ${record?.last_name ?? ""}</li>
           <li><b>Phone:</b> ${record?.phone_number ?? ""}</li>
           <li><b>Email:</b> ${record?.email ?? ""}</li>
+          <li><b>Delivery address:</b> ${record?.delivery_address ?? ""}</li>
           <li><b>Mode:</b> ${mode}</li>
         </ul>
       `;

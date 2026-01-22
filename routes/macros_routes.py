@@ -334,11 +334,18 @@ def get_ui_price():
       - day
       - per-meal average (for 3 meals + 1 snack)
     """
+    MIN_KCAL = 500
+    MAX_KCAL = 3500
     kcal = request.args.get("kcal", type=float)
     diet_type = request.args.get("diet", "").lower().strip()
 
-    if not kcal or kcal <= 0:
-        return jsonify({"error": "Please provide a positive kcal value"}), 400
+    if kcal is None:
+        return jsonify({"error": "Please provide a kcal value"}), 400
+
+    if kcal < MIN_KCAL or kcal > MAX_KCAL:
+        return jsonify({
+            "error": f"kcal must be between {MIN_KCAL} and {MAX_KCAL}."
+        }), 400
     if diet_type not in DIET_MACROS:
         return jsonify({"error": f"Diet type must be one of {list(DIET_MACROS.keys())}"}), 400
 
