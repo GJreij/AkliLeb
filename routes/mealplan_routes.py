@@ -269,7 +269,7 @@ def generate_meal_plan():
     )
 
     if not macro_target_resp.data:
-        return jsonify({"error": "No macro target"}), 400
+        return jsonify({"error": "No diet set, we're working on it!"}), 400
 
     target = macro_target_resp.data[0]
     protein_g = float(target.get("protein_g") or 0)
