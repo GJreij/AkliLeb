@@ -524,7 +524,7 @@ class OrderService:
                         "status": "pending",
                         "provider": None,
                         "provider_payment_id": None,
-                        "currency": "EUR",
+                        "currency": "USD",
                         "meal_plan_day_id": meal_plan_day_id,
                         "created_at": now,
                     }

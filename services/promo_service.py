@@ -190,7 +190,7 @@ def validate_and_apply_promo_code(
                 "status": "order_value_too_low",
                 "discount_amount": 0,
                 "final_price": round(total_price, 2),
-                "promo_message": f"Minimum order value for this promo is €{min_order_value}.",
+                "promo_message": f"Minimum order value for this promo is ${min_order_value}.",
             }
 
     # 6) Discount calculation
@@ -204,7 +204,7 @@ def validate_and_apply_promo_code(
         msg = f"Promo applied! You saved {discount_value}%."
     elif discount_type == "fixed":
         discount = discount_value
-        msg = f"Promo applied! You saved €{discount_value}."
+        msg = f"Promo applied! You saved ${discount_value}."
     else:
         # Unknown discount_type; treat as no discount but "applied"
         discount = 0.0
