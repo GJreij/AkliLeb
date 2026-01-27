@@ -18,7 +18,8 @@ def check_meal_plan_conflict():
     user_id = data.get("user_id")
     start_date_str = data.get("start_date")
     end_date_str = data.get("end_date")
-
+    print("start_date_str:", repr(start_date_str))
+    print("end_date_str:", repr(end_date_str))
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
 
