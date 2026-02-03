@@ -51,7 +51,10 @@ def optimize_subrecipes(
     NO_DINNER_YES_LUNCH_PCT = 0.70
     NO_LUNCH_YES_DINNER_PCT = 0.70
 
-    SERVING_MIN = 1
+    SERVING_MIN_BY_STEP = {
+    1.0: 1.0,  # integer mode starts at 1 serving
+    0.5: 0.5,  # half-step mode can start at 0.5 serving
+    }
     DEFAULT_MAX_SERVING = 3
 
     WEIGHT_PROTEIN = 2.0
@@ -165,6 +168,7 @@ def optimize_subrecipes(
         serving_step = 1.0  -> your current integer servings
         serving_step = 0.5  -> tries 1.0, 1.5, 2.0, ... (still >= 1.0)
         """
+        serving_min = SERVING_MIN_BY_STEP.get(serving_step, 1.0)
         for tol in KCAL_TOLERANCES:
             prob = LpProblem(f"MealPlanOptimization_{int(tol * 100)}_step_{serving_step}", LpMinimize)
 
@@ -174,7 +178,7 @@ def optimize_subrecipes(
                 x = {
                     i: LpVariable(
                         f"x_{i}",
-                        lowBound=SERVING_MIN,
+                        lowBound=serving_min,
                         upBound=s["max_serving"],
                         cat=LpInteger,
                     )
@@ -185,7 +189,7 @@ def optimize_subrecipes(
             else:
                 # half-step: x_i = (serving_step) * y_i, y_i integer
                 # start at 1.0 => y_i >= 1.0/step
-                min_units = int(round(SERVING_MIN / serving_step))  # for step=0.5 => 2
+                min_units = int(round(serving_min / serving_step))  # for step=0.5 => 2
                 y = {
                     i: LpVariable(
                         f"y_{i}",
