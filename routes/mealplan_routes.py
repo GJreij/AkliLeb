@@ -265,7 +265,7 @@ def generate_meal_plan():
         }), 400
 
     # -------------------------------------------------------------
-    # 2. Build meals_map
+    # 2. Build meals_mapp
     # -------------------------------------------------------------
     allowed_meal_types = {"breakfast", "lunch", "dinner", "snack"}
 
