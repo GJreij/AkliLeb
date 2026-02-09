@@ -57,7 +57,7 @@ def optimize_subrecipes(
     }
     DEFAULT_MAX_SERVING = 3
 
-    WEIGHT_PROTEIN = 2.0
+    WEIGHT_PROTEIN = 1.0
     WEIGHT_CARBS = 1.0
     WEIGHT_FAT = 1.0
 
