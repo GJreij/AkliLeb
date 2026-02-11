@@ -186,7 +186,10 @@ def apply_changes_and_optimize(
         # 1. Skip days explicitly deleted
         if day_change and day_change.get("deleted_day"):
             continue
-
+        # ✅ NEW: If this day has no change logs, keep it intact (no re-optimization)
+        if not day_change:
+            new_days.append(day)
+            continue    
         # 2. Determine baseline target for this specific day
         #    If the day was adjusted previously, re-use that. Otherwise,
         #    fall back to the global daily target.
