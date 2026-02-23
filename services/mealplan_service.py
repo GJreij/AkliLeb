@@ -161,167 +161,163 @@ def optimize_subrecipes(
         }
 
     # -------------------------------------------------------------
-    # ✅ NEW: generic solver that supports step=1.0 or step=0.5
+    # ✅ NEW: solve ONCE for a given (tol, step)
     # -------------------------------------------------------------
-    def _solve_lp(serving_step: float):
+    def _solve_lp_once(serving_step: float, tol: float):
         """
-        serving_step = 1.0  -> your current integer servings
-        serving_step = 0.5  -> tries 1.0, 1.5, 2.0, ... (still >= 1.0)
+        serving_step = 1.0  -> integer servings
+        serving_step = 0.5  -> 0.5 granularity servings
+        tol: kcal tolerance to enforce for this solve
         """
         serving_min = SERVING_MIN_BY_STEP.get(serving_step, 1.0)
-        for tol in KCAL_TOLERANCES:
-            prob = LpProblem(f"MealPlanOptimization_{int(tol * 100)}_step_{serving_step}", LpMinimize)
 
-            # Decision variables
-            if serving_step == 1.0:
-                # original: x_i integer in [1, max_serving]
-                x = {
-                    i: LpVariable(
-                        f"x_{i}",
-                        lowBound=serving_min,
-                        upBound=s["max_serving"],
-                        cat=LpInteger,
-                    )
-                    for i, s in enumerate(all_subs)
-                }
-                servings_expr = x  # direct
+        prob = LpProblem(f"MealPlanOptimization_{int(tol * 100)}_step_{serving_step}", LpMinimize)
 
-            else:
-                # half-step: x_i = (serving_step) * y_i, y_i integer
-                # start at 1.0 => y_i >= 1.0/step
-                min_units = int(round(serving_min / serving_step))  # for step=0.5 => 2
-                y = {
-                    i: LpVariable(
-                        f"y_{i}",
-                        lowBound=min_units,
-                        upBound=int(round(all_subs[i]["max_serving"] / serving_step)),
-                        cat=LpInteger,
-                    )
-                    for i in range(len(all_subs))
-                }
-                servings_expr = {i: serving_step * y[i] for i in range(len(all_subs))}
+        # Decision variables
+        if serving_step == 1.0:
+            x = {
+                i: LpVariable(
+                    f"x_{i}",
+                    lowBound=serving_min,
+                    upBound=s["max_serving"],
+                    cat=LpInteger,
+                )
+                for i, s in enumerate(all_subs)
+            }
+            servings_expr = x
+        else:
+            min_units = int(round(serving_min / serving_step))  # for step=0.5 => 1.0/0.5 = 2
+            y = {
+                i: LpVariable(
+                    f"y_{i}",
+                    lowBound=min_units,
+                    upBound=int(round(all_subs[i]["max_serving"] / serving_step)),
+                    cat=LpInteger,
+                )
+                for i in range(len(all_subs))
+            }
+            servings_expr = {i: serving_step * y[i] for i in range(len(all_subs))}
 
-            total_P = lpSum(servings_expr[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
-            total_C = lpSum(servings_expr[i] * s["macros"]["carbs"] for i, s in enumerate(all_subs))
-            total_F = lpSum(servings_expr[i] * s["macros"]["fat"] for i, s in enumerate(all_subs))
-            total_K = lpSum(servings_expr[i] * s["macros"]["kcal"] for i, s in enumerate(all_subs))
+        total_P = lpSum(servings_expr[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
+        total_C = lpSum(servings_expr[i] * s["macros"]["carbs"] for i, s in enumerate(all_subs))
+        total_F = lpSum(servings_expr[i] * s["macros"]["fat"] for i, s in enumerate(all_subs))
+        total_K = lpSum(servings_expr[i] * s["macros"]["kcal"] for i, s in enumerate(all_subs))
 
-            dev_P = LpVariable("dev_P", lowBound=0)
-            dev_C = LpVariable("dev_C", lowBound=0)
-            dev_F = LpVariable("dev_F", lowBound=0)
+        dev_P = LpVariable("dev_P", lowBound=0)
+        dev_C = LpVariable("dev_C", lowBound=0)
+        dev_F = LpVariable("dev_F", lowBound=0)
 
-            # |total - target|
-            prob += total_P - P_t <= dev_P
-            prob += -(total_P - P_t) <= dev_P
-            prob += total_C - C_t <= dev_C
-            prob += -(total_C - C_t) <= dev_C
-            prob += total_F - F_t <= dev_F
-            prob += -(total_F - F_t) <= dev_F
+        # |total - target|
+        prob += total_P - P_t <= dev_P
+        prob += -(total_P - P_t) <= dev_P
+        prob += total_C - C_t <= dev_C
+        prob += -(total_C - C_t) <= dev_C
+        prob += total_F - F_t <= dev_F
+        prob += -(total_F - F_t) <= dev_F
 
-            # Kcal by meal_type constraints (unchanged)
-            kcal_by_type: Dict[str, Any] = defaultdict(int)
-            for i, s in enumerate(all_subs):
-                meal_key = s["meal"]
-                meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
-                if meal_type:
-                    kcal_by_type[meal_type] += servings_expr[i] * s["macros"]["kcal"]
+        # Kcal by meal_type constraints (unchanged)
+        kcal_by_type: Dict[str, Any] = defaultdict(int)
+        for i, s in enumerate(all_subs):
+            meal_key = s["meal"]
+            meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
+            if meal_type:
+                kcal_by_type[meal_type] += servings_expr[i] * s["macros"]["kcal"]
 
-            types = set(kcal_by_type.keys())
+        types = set(kcal_by_type.keys())
 
-            if {"snack", "breakfast", "dinner", "lunch"} <= types:
-                prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
-                prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
-                d = kcal_by_type["dinner"]
-                l = kcal_by_type["lunch"]
-                prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
-                prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
+        if {"snack", "breakfast", "dinner", "lunch"} <= types:
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-            if "snack" in types and "breakfast" not in types and "dinner" in types and "lunch" in types:
-                prob += kcal_by_type["snack"] <= (SNACK_MAX_PCT + 0.10) * kcal_t
-                d = kcal_by_type["dinner"]
-                l = kcal_by_type["lunch"]
-                prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
-                prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
+        if "snack" in types and "breakfast" not in types and "dinner" in types and "lunch" in types:
+            prob += kcal_by_type["snack"] <= (SNACK_MAX_PCT + 0.10) * kcal_t
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-            if "snack" not in types and "breakfast" not in types and "dinner" in types and "lunch" in types:
-                d = kcal_by_type["dinner"]
-                l = kcal_by_type["lunch"]
-                prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
-                prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
+        if "snack" not in types and "breakfast" not in types and "dinner" in types and "lunch" in types:
+            d = kcal_by_type["dinner"]
+            l = kcal_by_type["lunch"]
+            prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
+            prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
-            if "snack" in types and "breakfast" in types and "dinner" not in types and "lunch" in types:
-                prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
-                prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
-                prob += kcal_by_type["lunch"] <= NO_DINNER_YES_LUNCH_PCT * kcal_t
+        if "snack" in types and "breakfast" in types and "dinner" not in types and "lunch" in types:
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            prob += kcal_by_type["lunch"] <= NO_DINNER_YES_LUNCH_PCT * kcal_t
 
-            if "snack" in types and "breakfast" in types and "dinner" in types and "lunch" not in types:
-                prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
-                prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
-                prob += kcal_by_type["dinner"] <= NO_LUNCH_YES_DINNER_PCT * kcal_t
+        if "snack" in types and "breakfast" in types and "dinner" in types and "lunch" not in types:
+            prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * kcal_t
+            prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * kcal_t
+            prob += kcal_by_type["dinner"] <= NO_LUNCH_YES_DINNER_PCT * kcal_t
 
-            # kcal constraints (unchanged)
-            prob += total_K <= (1 + tol) * kcal_t
-            if not allow_under_kcal:
-                prob += total_K >= (1 - tol) * kcal_t
+        # kcal constraints (for THIS tol)
+        prob += total_K <= (1 + tol) * kcal_t
+        if not allow_under_kcal:
+            prob += total_K >= (1 - tol) * kcal_t
 
-            # objective (unchanged)
-            prob += (WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F)
+        # objective (unchanged)
+        prob += (WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F)
 
-            prob.solve(PULP_CBC_CMD(msg=False))
+        prob.solve(PULP_CBC_CMD(msg=False))
 
-            if LpStatus[prob.status] == "Optimal":
-                day_totals = {
-                    "protein": int(round(value(total_P))),
-                    "carbs": int(round(value(total_C))),
-                    "fat": int(round(value(total_F))),
-                    "kcal": int(round(value(total_K))),
-                    "tolerance_used": tol,
-                    "serving_step_used": serving_step,
-                }
+        if LpStatus[prob.status] != "Optimal":
+            return None
 
-                optimized = []
-                for i, s in enumerate(all_subs):
-                    serv_val = float(value(servings_expr[i]))
-                    meal_key = s["meal"]
-                    meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
-                    mps = s["macros"]
+        day_totals = {
+            "protein": int(round(value(total_P))),
+            "carbs": int(round(value(total_C))),
+            "fat": int(round(value(total_F))),
+            "kcal": int(round(value(total_K))),
+            "tolerance_used": tol,
+            "serving_step_used": serving_step,
+        }
 
-                    optimized_macros = {
-                        "protein": mps["protein"] * serv_val,
-                        "carbs": mps["carbs"] * serv_val,
-                        "fat": mps["fat"] * serv_val,
-                        "kcal": mps["kcal"] * serv_val,
-                    }
+        optimized = []
+        for i, s in enumerate(all_subs):
+            serv_val = float(value(servings_expr[i]))
+            meal_key = s["meal"]
+            meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
+            mps = s["macros"]
 
-                    optimized.append({
-                        "subrecipe_id": s["subrecipe_id"],
-                        "name": s["name"],
-                        "meal_name": meal_key,
-                        "meal_type": meal_type,
-                        "servings": serv_val,  # can now be 1.5 etc.
-                        "macros": optimized_macros,
-                    })
+            optimized_macros = {
+                "protein": mps["protein"] * serv_val,
+                "carbs": mps["carbs"] * serv_val,
+                "fat": mps["fat"] * serv_val,
+                "kcal": mps["kcal"] * serv_val,
+            }
 
-                total_error = float(value(
-                    WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F
-                ))
-                return optimized, total_error, day_totals
+            optimized.append({
+                "subrecipe_id": s["subrecipe_id"],
+                "name": s["name"],
+                "meal_name": meal_key,
+                "meal_type": meal_type,
+                "servings": serv_val,
+                "macros": optimized_macros,
+            })
 
-        return None  # not feasible for any tolerance at this step
+        total_error = float(value(
+            WEIGHT_PROTEIN * dev_P + WEIGHT_CARBS * dev_C + WEIGHT_FAT * dev_F
+        ))
+        return optimized, total_error, day_totals
 
     # -------------------------------------------------------------
-    # Try normal integer (step=1.0) first (your current behavior)
+    # ✅ NEW LOOP ORDER:
+    # For each tolerance: try step=1, then step=0.5, then next tol
     # -------------------------------------------------------------
-    result = _solve_lp(serving_step=1.0)
-    if result:
-        return result
+    for tol in KCAL_TOLERANCES:
+        result = _solve_lp_once(serving_step=1.0, tol=tol)
+        if result:
+            return result
 
-    # -------------------------------------------------------------
-    # ✅ NEW: before safe_fallback, try half-step servings (1.0, 1.5, 2.0, ...)
-    # -------------------------------------------------------------
-    result = _solve_lp(serving_step=SERVING_STEP_FINE)
-    if result:
-        return result
+        result = _solve_lp_once(serving_step=SERVING_STEP_FINE, tol=tol)
+        if result:
+            return result
 
     # No feasible solution -> safe fallback
     return safe_fallback()
