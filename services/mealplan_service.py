@@ -234,7 +234,7 @@ def optimize_subrecipes(
             prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
 
         if "snack" in types and "breakfast" not in types and "dinner" in types and "lunch" in types:
-            prob += kcal_by_type["snack"] <= (SNACK_MAX_PCT + 0.10) * kcal_t
+            prob += kcal_by_type["snack"] <= (SNACK_MAX_PCT) * kcal_t
             d = kcal_by_type["dinner"]
             l = kcal_by_type["lunch"]
             prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
