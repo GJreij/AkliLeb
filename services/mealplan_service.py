@@ -320,14 +320,20 @@ def _solve_lp(serving_step: float, tol: float):
     # For each tolerance: try step=1.0 first, then step=0.5
     # Only then move to a higher tolerance.
     # -------------------------------------------------------------
+# -------------------------------------------------------------
+# ✅ UPDATED ORDER:
+# For each tolerance: try step=1.0 first, then step=0.5
+# Only then move to a higher tolerance.
+# Always return a 3-tuple or safe_fallback().
+# -------------------------------------------------------------
     for tol in KCAL_TOLERANCES:
         result = _solve_lp(serving_step=1.0, tol=tol)
-        if result:
+        if result is not None:
             return result
 
         result = _solve_lp(serving_step=SERVING_STEP_FINE, tol=tol)
-        if result:
+        if result is not None:
             return result
 
-    # No feasible solution -> safe fallback
+    # No feasible solution -> safe fallback (guaranteed tuple)
     return safe_fallback()
