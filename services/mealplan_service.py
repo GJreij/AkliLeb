@@ -53,7 +53,7 @@ def optimize_subrecipes(
 
     SERVING_MIN_BY_STEP = {
     1.0: 1.0,  # integer mode starts at 1 serving
-    0.5: 1.0,  # half-step mode can start at 0.5 serving
+    0.5: 0.5,  # half-step mode can start at 0.5 serving
     }
     DEFAULT_MAX_SERVING = 3
 
