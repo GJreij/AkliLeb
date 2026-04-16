@@ -131,6 +131,116 @@ def score_day(recipes_by_meal: dict) -> float:
     # Tune these to your preference
     return (10.0 * total_sub) + (1.5 * total_sum_max) - (12.0 * single_sub_meals)
 
+def get_or_create_daily_template(
+    date,
+    meals_map: dict,
+    scored_recipes: list,
+    allowed_ids_today: set,
+    recent_global: deque,
+    meal_history: deque,
+    user_prefs: dict,
+    best_tries: int = 30,
+) -> dict | None:
+
+    resp = (
+        supabase.table("daily_menu")
+        .select("meal_type, recipe_id")
+        .eq("date", str(date))
+        .execute()
+    )
+    existing = {row["meal_type"]: row["recipe_id"] for row in (resp.data or [])}
+
+    if existing:
+        recipes_by_meal = {}
+        needs_swap = []
+
+        for meal_key, meal_type in meals_map.items():
+            recipe_id = existing.get(meal_type)
+
+            if not recipe_id:
+                needs_swap.append((meal_key, meal_type))
+                continue
+
+            pref = user_prefs.get(recipe_id, {})
+            if pref.get("dont_include") or pref.get("dislike"):
+                needs_swap.append((meal_key, meal_type))
+                continue
+
+            recipe = next((r for _, r in scored_recipes if r["id"] == recipe_id), None)
+            if not recipe:
+                needs_swap.append((meal_key, meal_type))
+                continue
+
+            recipes_by_meal[meal_key] = {
+                "recipe_id": recipe_id,
+                "meal_key": meal_key,
+                "meal_type": meal_type,
+                "recipe_name": recipe.get("name"),
+                "photo": recipe.get("photo"),
+            }
+
+        used_today = {info["recipe_id"] for info in recipes_by_meal.values()}
+        for meal_key, meal_type in needs_swap:
+            candidates = [
+                r for _, r in scored_recipes
+                if r["id"] in allowed_ids_today
+                and r["id"] not in used_today
+                and r.get(f"could_be_{meal_type}", False)
+                and not user_prefs.get(r["id"], {}).get("dont_include")
+            ]
+            if not candidates:
+                return None
+
+            chosen = weighted_choice_by_flex(candidates)
+            recipes_by_meal[meal_key] = {
+                "recipe_id": chosen["id"],
+                "meal_key": meal_key,
+                "meal_type": meal_type,
+                "recipe_name": chosen.get("name"),
+                "photo": chosen.get("photo"),
+            }
+            used_today.add(chosen["id"])
+
+        return recipes_by_meal
+
+    # No template yet — random generation
+    best_day = None
+    best_day_score = float("-inf")
+
+    for _ in range(best_tries):
+        candidate = build_day_candidate(
+            meals_map=meals_map,
+            scored_recipes=scored_recipes,
+            allowed_ids_today=allowed_ids_today,
+            recent_global=recent_global,
+            meal_hist=meal_history,
+        )
+        if not candidate:
+            continue
+        sc = score_day(candidate)
+        if sc > best_day_score:
+            best_day_score = sc
+            best_day = candidate
+
+    if not best_day:
+        return None
+
+    rows = [
+        {
+            "date": str(date),
+            "meal_type": info["meal_type"],
+            "recipe_id": info["recipe_id"],
+        }
+        for info in best_day.values()
+    ]
+    supabase.table("daily_menu").upsert(
+        rows,
+        on_conflict="date,meal_type",
+        ignore_duplicates=True
+    ).execute()
+
+    return best_day
+
 
 def build_day_candidate(
     meals_map: dict,
@@ -416,59 +526,38 @@ def generate_meal_plan():
     recent_recipes_global = deque(maxlen=10)
     meal_history = deque(maxlen=20)
 
-    BEST_TRIES = int(data.get("day_build_tries") or 30)  # optional override
+    BEST_TRIES = int(data.get("day_build_tries") or 30)
 
     for date in available_dates:
         allowed_ids_today = allowed_recipe_ids_by_date.get(date, set())
 
-        # ✅ NEW: try multiple valid day combinations and pick the most flexible
-        best_day = None
-        best_day_score = float("-inf")
+        recipes_by_meal = get_or_create_daily_template(
+            date=date,
+            meals_map=meals_map,
+            scored_recipes=scored_recipes,
+            allowed_ids_today=allowed_ids_today,
+            recent_global=recent_recipes_global,
+            meal_history=meal_history,
+            user_prefs=user_prefs,
+            best_tries=BEST_TRIES,
+        )
 
-        for _ in range(BEST_TRIES):
-            candidate = build_day_candidate(
-                meals_map=meals_map,
-                scored_recipes=scored_recipes,
-                allowed_ids_today=allowed_ids_today,
-                recent_global=recent_recipes_global,
-                meal_hist=meal_history,
-            )
-            if not candidate:
-                continue
-
-            sc = score_day(candidate)
-            if sc > best_day_score:
-                best_day_score = sc
-                best_day = candidate
-
-        if not best_day:
+        if not recipes_by_meal:
             return jsonify({
                 "error": "Not enough unique recipes for this day",
                 "date": str(date),
             }), 404
 
-        recipes_by_meal = best_day
+        for info in recipes_by_meal.values():
+            meal_history.append(info["recipe_id"])
+            recent_recipes_global.append(info["recipe_id"])
 
-        # ✅ IMPORTANT: preserve your behavior of pushing chosen recipes into history
-        # AFTER selection is finalized (previously it was per-meal as you picked)
-        for mk, info in recipes_by_meal.items():
-            rid = info["recipe_id"]
-            meal_history.append(rid)
-            recent_recipes_global.append(rid)
-
-        # ---------------------------------------------------------
-        # 2. Optimize subrecipes to hit macro target (unchanged)
-        # ---------------------------------------------------------
         optimized_subs, loss, day_totals = optimize_subrecipes(
             recipes_by_meal,
             target_with_kcal
         )
 
-        # ---------------------------------------------------------
-        # 3. Group subrecipes by meal (unchanged)
-        # ---------------------------------------------------------
         subs_by_meal = {k: [] for k in recipes_by_meal}
-
         for sub in optimized_subs:
             meal_name = sub["meal_name"]
             if meal_name in subs_by_meal:
@@ -479,9 +568,6 @@ def generate_meal_plan():
                     "macros": sub["macros"],
                 })
 
-        # ---------------------------------------------------------
-        # 4. Compute macros per meal (unchanged)
-        # ---------------------------------------------------------
         macros_per_recipe = {}
         for meal_key, subs in subs_by_meal.items():
             macros_per_recipe[meal_key] = {
@@ -491,9 +577,6 @@ def generate_meal_plan():
                 "kcal": int(sum(s["macros"]["kcal"] for s in subs)),
             }
 
-        # ---------------------------------------------------------
-        # 5. Assemble meals list (unchanged)
-        # ---------------------------------------------------------
         meals_list = []
         for meal_key, info in recipes_by_meal.items():
             meals_list.append({
@@ -506,9 +589,6 @@ def generate_meal_plan():
                 "subrecipes": subs_by_meal.get(meal_key, []),
             })
 
-        # ---------------------------------------------------------
-        # 6. Push day into response (unchanged)
-        # ---------------------------------------------------------
         days.append({
             "date": str(date),
             "weekday": date.weekday(),
@@ -516,8 +596,7 @@ def generate_meal_plan():
             "macro_error": loss,
             "totals": day_totals,
             "meals": meals_list,
-            # optional debug values you can keep/remove:
-            "day_flex_score": best_day_score,
+            "day_flex_score": best_day_score if 'best_day_score' in dir() else None,
         })
 
     return jsonify({
