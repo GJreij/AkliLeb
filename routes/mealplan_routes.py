@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, timedelta
 from collections import deque, defaultdict
-from functools import lru_cache
 import random
 
 from utils.supabase_client import supabase
@@ -14,28 +13,15 @@ mealplan_bp = Blueprint("mealplan", __name__)
 # CONFIG
 # =============================================================================
 
-# How much to penalize category overlap with the previous day's meals.
-# E.g. if yesterday had chicken and today's recipe is also chicken → -4.0 per overlap.
-CATEGORY_OVERLAP_PENALTY = 4.0
-
-# Extra penalty on top of category overlap if the exact same recipe was eaten yesterday.
+CATEGORY_OVERLAP_PENALTY      = 4.0
 SAME_RECIPE_YESTERDAY_PENALTY = 10.0
-
-# Bonus weight applied to weekday popularity (scaled 0–1).
-WEEKDAY_POPULARITY_WEIGHT = 1.5
-
-# Subrecipe flexibility bonus weights (keeps optimizer happy — same logic as before).
-FLEX_SUB_COUNT_WEIGHT = 0.5
-FLEX_SUM_MAX_WEIGHT   = 0.1
-
-# Number of full-day candidates to generate and score before picking the best one.
-BEST_DAY_TRIES_DEFAULT = 30
-
-# How many recent recipe IDs to track globally to avoid repetition across days.
-RECENT_GLOBAL_MAXLEN = 10
-
-# How many recent meal-level IDs to remember for per-meal-slot deduplication.
-MEAL_HISTORY_MAXLEN = 20
+WEEKDAY_POPULARITY_WEIGHT     = 1.5
+FLEX_SUB_COUNT_WEIGHT         = 0.5
+FLEX_SUM_MAX_WEIGHT           = 0.1
+BEST_DAY_TRIES_DEFAULT        = 30
+RECENT_GLOBAL_MAXLEN          = 10
+MEAL_HISTORY_MAXLEN           = 20
+POPULARITY_CAP                = 50   # orders at which a recipe hits max popularity score
 
 
 # =============================================================================
@@ -58,136 +44,147 @@ def _is_weekend(d) -> bool:
 
 
 # =============================================================================
-# CACHED DATA FETCHERS
+# BATCH PREFETCHERS
+# One DB round-trip per data type - called once before the generation loop.
 # =============================================================================
 
-@lru_cache(maxsize=10_000)
-def get_recipe_flex_stats(recipe_id: int) -> dict:
+def prefetch_flex_stats(recipe_ids: list) -> dict:
     """
-    Returns subrecipe flexibility metadata for the macro optimizer:
-      - sub_count: number of subrecipes linked to this recipe
-      - sum_max:   sum of max_serving values across those subrecipes
+    Returns { recipe_id: { sub_count, sum_max } } for all recipe IDs in one query.
+    """
+    if not recipe_ids:
+        return {}
 
-    Higher values = more degrees of freedom for the LP solver = fewer fallbacks.
-    Cached per recipe_id for the lifetime of the process.
-    """
     resp = (
         supabase.table("recipe_subrecipe")
-        .select("subrecipe(max_serving)")
-        .eq("recipe_id", recipe_id)
+        .select("recipe_id, subrecipe(max_serving)")
+        .in_("recipe_id", recipe_ids)
         .execute()
     )
-    sub_count, sum_max = 0, 0
+
+    counts: dict = defaultdict(int)
+    maxes:  dict = defaultdict(int)
+
     for rs in (resp.data or []):
-        sub = (rs or {}).get("subrecipe") or {}
-        sum_max += int(sub.get("max_serving") or 3)
-        sub_count += 1
+        rid = rs.get("recipe_id")
+        if rid is None:
+            continue
+        sub = rs.get("subrecipe") or {}
+        maxes[rid]  += int(sub.get("max_serving") or 3)
+        counts[rid] += 1
 
     return {
-        "sub_count": max(sub_count, 1),
-        "sum_max":   max(sum_max, 3),
+        rid: {
+            "sub_count": max(counts.get(rid, 0), 1),
+            "sum_max":   max(maxes.get(rid, 0),  3),
+        }
+        for rid in recipe_ids
     }
 
 
-@lru_cache(maxsize=5_000)
-def get_recipe_categories(recipe_id: int) -> frozenset:
+def prefetch_categories(recipe_ids: list) -> dict:
     """
-    Returns a frozenset of category strings for a recipe (e.g. {"chicken", "rice"}).
-
-    Used to compute day-to-day variety: if today's recipe shares categories
-    with yesterday's meals, it scores lower.
-
-    Adjust the table/column names to match your schema.
-    If you don't have a category table yet, this returns an empty frozenset
-    (disabling the overlap penalty gracefully).
+    Returns { recipe_id: frozenset(categories) } for all recipe IDs in one query.
+    Returns empty frozensets gracefully if the table does not exist yet.
     """
+    if not recipe_ids:
+        return {}
+
     try:
         resp = (
             supabase.table("recipe_category")
-            .select("category")
-            .eq("recipe_id", recipe_id)
+            .select("recipe_id, category")
+            .in_("recipe_id", recipe_ids)
             .execute()
         )
-        return frozenset(row["category"] for row in (resp.data or []))
     except Exception:
-        return frozenset()
+        return {rid: frozenset() for rid in recipe_ids}
+
+    cat_map: dict = defaultdict(set)
+    for row in (resp.data or []):
+        rid = row.get("recipe_id")
+        cat = row.get("category")
+        if rid is not None and cat:
+            cat_map[rid].add(cat)
+
+    return {rid: frozenset(cat_map.get(rid, set())) for rid in recipe_ids}
 
 
-@lru_cache(maxsize=5_000)
-def get_weekday_popularity(recipe_id: int, weekday: int) -> float:
+def prefetch_weekday_popularity(recipe_ids: list, weekdays: list) -> dict:
     """
-    Returns a normalized [0.0, 1.0] popularity score for a recipe
-    on a given weekday (0=Mon … 6=Sun), based on historical order volume.
-
-    Falls back to 0.5 (neutral) if no history exists — so new recipes
-    aren't disadvantaged before you have data.
-
-    Adjust the table/column names to match your schema.
+    Returns { (recipe_id, weekday): normalized_score } in one query.
+    Falls back to 0.5 if the table does not exist yet.
     """
+    if not recipe_ids or not weekdays:
+        return {}
+
     try:
         resp = (
             supabase.table("meal_plan_day")
-            .select("recipe_id", count="exact")
-            .eq("recipe_id", recipe_id)
-            .eq("weekday", weekday)
+            .select("recipe_id, weekday")
+            .in_("recipe_id", recipe_ids)
+            .in_("weekday", weekdays)
             .execute()
         )
-        count = resp.count or 0
-        # Cap at 50 orders = max score. Tune this as your order volume grows.
-        return min(count / 50.0, 1.0)
     except Exception:
-        return 0.5
+        return {(rid, wd): 0.5 for rid in recipe_ids for wd in weekdays}
+
+    counts: dict = defaultdict(int)
+    for row in (resp.data or []):
+        rid = row.get("recipe_id")
+        wd  = row.get("weekday")
+        if rid is not None and wd is not None:
+            counts[(rid, wd)] += 1
+
+    return {
+        (rid, wd): min(counts.get((rid, wd), 0) / POPULARITY_CAP, 1.0)
+        for rid in recipe_ids
+        for wd in weekdays
+    }
 
 
 # =============================================================================
-# RECIPE SCORING
+# RECIPE SCORING  (pure in-memory - zero DB calls)
 # =============================================================================
 
 def composite_score(
-    recipe: dict,
-    weekday: int,
+    recipe:               dict,
+    weekday:              int,
     yesterday_recipe_ids: set,
     yesterday_categories: frozenset,
-    user_pref: dict,
+    user_pref:            dict,
+    flex_stats:           dict,
+    categories:           dict,
+    popularity:           dict,
 ) -> float:
     """
-    Scores a single recipe candidate for a specific meal slot on a specific day.
-    Higher score = more likely to be selected (but still probabilistic).
+    Scores a recipe for a meal slot on a specific day. Higher = more likely chosen.
 
-    Breakdown:
-      + random jitter         → prevents deterministic/boring plans
-      + user like bonus       → surfaces preferred recipes
-      + flex bonus            → keeps the LP optimizer happy
-      + weekday popularity    → reflects what clients actually order that day
-      - user dislike penalty  → suppresses disliked recipes
-      - category overlap      → enforces semantic variety day-over-day
-      - same recipe yesterday → hard discourage (not hard block, to avoid deadlock)
+      + random jitter         - variety, prevents deterministic plans
+      + user like bonus
+      + flex bonus            - LP optimizer friendliness
+      + weekday popularity    - historical ordering patterns
+      - user dislike penalty
+      - category overlap      - semantic day-to-day variety
+      - same recipe yesterday - hard discourage (not hard block)
     """
-    rid = recipe["id"]
-
-    # Base: random jitter for variety
+    rid   = recipe["id"]
     score = random.uniform(0.0, 1.0)
 
-    # User preference signals
     if user_pref.get("like"):
         score += 2.0
     if user_pref.get("dislike"):
         score -= 5.0
 
-    # Subrecipe flexibility bonus (keeps optimizer feasible)
-    flex = get_recipe_flex_stats(rid)
+    flex   = flex_stats.get(rid, {"sub_count": 1, "sum_max": 3})
     score += FLEX_SUB_COUNT_WEIGHT * flex["sub_count"]
     score += FLEX_SUM_MAX_WEIGHT   * flex["sum_max"]
 
-    # Weekday popularity bonus
-    score += WEEKDAY_POPULARITY_WEIGHT * get_weekday_popularity(rid, weekday)
+    score += WEEKDAY_POPULARITY_WEIGHT * popularity.get((rid, weekday), 0.5)
 
-    # Category overlap penalty (semantic variety across days)
-    today_cats = get_recipe_categories(rid)
-    overlap = len(today_cats & yesterday_categories)
-    score -= CATEGORY_OVERLAP_PENALTY * overlap
+    today_cats = categories.get(rid, frozenset())
+    score -= CATEGORY_OVERLAP_PENALTY * len(today_cats & yesterday_categories)
 
-    # Hard-discourage repeating yesterday's exact recipe
     if rid in yesterday_recipe_ids:
         score -= SAME_RECIPE_YESTERDAY_PENALTY
 
@@ -196,24 +193,22 @@ def composite_score(
 
 def weighted_choice_by_score(candidates: list, scores: list) -> dict:
     """
-    Probabilistic selection: higher score = more likely to be chosen,
-    but lower-scored recipes still have a chance (maintains variety).
-
-    Shifts all scores to be non-negative before weighting.
+    Probabilistic selection: shifts scores to non-negative, then weights.
+    Lower-scored recipes still have a small chance (maintains variety).
     """
     min_score = min(scores)
-    weights = [max(s - min_score + 0.001, 0.001) for s in scores]
+    weights   = [max(s - min_score + 0.001, 0.001) for s in scores]
     return random.choices(candidates, weights=weights, k=1)[0]
 
 
-def score_day(recipes_by_meal: dict) -> float:
+def score_day(recipes_by_meal: dict, flex_stats: dict) -> float:
     """
-    Scores a full-day combination for the multi-try beam selection.
-    Rewards days with more subrecipe flexibility (LP optimizer friendliness).
+    Scores a full-day combination by LP optimizer friendliness.
+    Rewards more subrecipes/headroom, penalizes single-subrecipe meals.
     """
     total_sub, total_sum_max, single_sub_meals = 0, 0, 0
     for info in recipes_by_meal.values():
-        flex = get_recipe_flex_stats(int(info["recipe_id"]))
+        flex = flex_stats.get(int(info["recipe_id"]), {"sub_count": 1, "sum_max": 3})
         total_sub     += flex["sub_count"]
         total_sum_max += flex["sum_max"]
         if flex["sub_count"] <= 1:
@@ -226,33 +221,32 @@ def score_day(recipes_by_meal: dict) -> float:
 # =============================================================================
 
 def build_day_candidate(
-    meals_map: dict,
-    scored_recipes: list,
-    allowed_ids_today: set,
-    recent_global: deque,
-    meal_hist: deque,
-    weekday: int,
+    meals_map:            dict,
+    scored_recipes:       list,
+    allowed_ids_today:    set,
+    recent_global:        deque,
+    meal_hist:            deque,
+    weekday:              int,
     yesterday_recipe_ids: set,
     yesterday_categories: frozenset,
-    user_prefs: dict,
+    user_prefs:           dict,
+    flex_stats:           dict,
+    categories:           dict,
+    popularity:           dict,
 ) -> dict | None:
     """
-    Attempts to build one full day of meals (one recipe per meal slot).
-
-    Selection strategy (two-pass per slot):
-      1. Strict pass: excludes recipes seen recently globally or in meal history.
-         Uses composite_score() for weighted probabilistic selection.
-      2. Relaxed pass: if strict yields no candidates, drops the recency constraint
-         but keeps all other signals (user prefs, yesterday overlap, weekday pop.).
-
+    Builds one full-day candidate. Two-pass per slot:
+      1. Strict: excludes recently seen recipe IDs.
+      2. Relaxed: drops recency constraint if strict yields nothing.
+    All scoring is pure in-memory.
     Returns None if any slot cannot be filled.
     """
     recipes_by_meal: dict = {}
-    used_today: set = set()
+    used_today:      set  = set()
 
     for meal_key, meal_type in meals_map.items():
 
-        def score_candidates(strict: bool) -> list[tuple]:
+        def score_candidates(strict: bool) -> list:
             pairs = []
             for _, r in scored_recipes:
                 rid = r["id"]
@@ -270,6 +264,9 @@ def build_day_candidate(
                     yesterday_recipe_ids=yesterday_recipe_ids,
                     yesterday_categories=yesterday_categories,
                     user_pref=user_prefs.get(rid, {}),
+                    flex_stats=flex_stats,
+                    categories=categories,
+                    popularity=popularity,
                 )
                 pairs.append((r, sc))
             return pairs
@@ -297,30 +294,29 @@ def build_day_candidate(
 
 def get_or_create_daily_template(
     date,
-    meals_map: dict,
-    scored_recipes: list,
-    allowed_ids_today: set,
-    recent_global: deque,
-    meal_history: deque,
-    user_prefs: dict,
-    weekday: int,
+    meals_map:            dict,
+    scored_recipes:       list,
+    allowed_ids_today:    set,
+    recent_global:        deque,
+    meal_history:         deque,
+    user_prefs:           dict,
+    weekday:              int,
     yesterday_recipe_ids: set,
     yesterday_categories: frozenset,
-    best_tries: int = BEST_DAY_TRIES_DEFAULT,
+    flex_stats:           dict,
+    categories:           dict,
+    popularity:           dict,
+    best_tries:           int = BEST_DAY_TRIES_DEFAULT,
 ) -> dict | None:
     """
-    Returns a {meal_key: meal_info} dict for the given date.
+    Returns {meal_key: meal_info} for the given date.
 
-    If a daily_menu template already exists in the DB for this date:
-      - Uses those recipes as-is (respecting user prefs).
-      - Swaps out any recipes that are disliked/excluded/missing,
-        using the smart scorer for replacements.
+    If a daily_menu template exists: reuse it, swapping disliked/excluded/missing
+    slots using the smart scorer.
 
-    If no template exists:
-      - Generates `best_tries` candidate days and picks the highest-scoring one.
-      - Saves the winner to daily_menu for consistency across clients.
+    If no template: run best_tries candidates, pick the highest-scoring day,
+    persist it so all clients on the same kitchen share the same base.
     """
-    # --- Check for existing template ---
     resp = (
         supabase.table("daily_menu")
         .select("meal_type, recipe_id")
@@ -329,25 +325,21 @@ def get_or_create_daily_template(
     )
     existing = {row["meal_type"]: row["recipe_id"] for row in (resp.data or [])}
 
+    recipe_lookup = {r["id"]: r for _, r in scored_recipes}
+
     if existing:
         recipes_by_meal: dict = {}
-        needs_swap: list = []
+        needs_swap:      list = []
 
         for meal_key, meal_type in meals_map.items():
             recipe_id = existing.get(meal_type)
-            pref = user_prefs.get(recipe_id, {})
+            pref      = user_prefs.get(recipe_id, {})
 
-            if (
-                not recipe_id
-                or pref.get("dont_include")
-                or pref.get("dislike")
-            ):
+            if not recipe_id or pref.get("dont_include") or pref.get("dislike"):
                 needs_swap.append((meal_key, meal_type))
                 continue
 
-            recipe = next(
-                (r for _, r in scored_recipes if r["id"] == recipe_id), None
-            )
+            recipe = recipe_lookup.get(recipe_id)
             if not recipe:
                 needs_swap.append((meal_key, meal_type))
                 continue
@@ -378,6 +370,9 @@ def get_or_create_daily_template(
                     yesterday_recipe_ids=yesterday_recipe_ids,
                     yesterday_categories=yesterday_categories,
                     user_pref=user_prefs.get(rid, {}),
+                    flex_stats=flex_stats,
+                    categories=categories,
+                    popularity=popularity,
                 )
                 pairs.append((r, sc))
 
@@ -397,8 +392,8 @@ def get_or_create_daily_template(
 
         return recipes_by_meal
 
-    # --- No template: generate best_tries candidates, keep the best ---
-    best_day = None
+    # No template - generate candidates, keep best
+    best_day       = None
     best_day_score = float("-inf")
 
     for _ in range(best_tries):
@@ -412,18 +407,20 @@ def get_or_create_daily_template(
             yesterday_recipe_ids=yesterday_recipe_ids,
             yesterday_categories=yesterday_categories,
             user_prefs=user_prefs,
+            flex_stats=flex_stats,
+            categories=categories,
+            popularity=popularity,
         )
         if not candidate:
             continue
-        sc = score_day(candidate)
+        sc = score_day(candidate, flex_stats)
         if sc > best_day_score:
             best_day_score = sc
-            best_day = candidate
+            best_day       = candidate
 
     if not best_day:
         return None
 
-    # Persist to daily_menu so all clients on the same day see the same plan
     supabase.table("daily_menu").upsert(
         [
             {
@@ -446,7 +443,7 @@ def get_or_create_daily_template(
 
 @mealplan_bp.route("/check_meal_plan_conflict", methods=["POST"])
 def check_meal_plan_conflict():
-    data = request.get_json() or {}
+    data           = request.get_json() or {}
     user_id        = data.get("user_id")
     start_date_str = data.get("start_date")
     end_date_str   = data.get("end_date")
@@ -485,7 +482,7 @@ def generate_meal_plan():
     data = request.get_json() or {}
 
     # ------------------------------------------------------------------
-    # 1. Parse + validate input
+    # 1. Parse + validate
     # ------------------------------------------------------------------
     user_id          = data.get("user_id")
     start_date_str   = data.get("start_date")
@@ -518,7 +515,7 @@ def generate_meal_plan():
     if kitchen_id is not None:
         closures_q = closures_q.eq("kitchen_id", kitchen_id)
 
-    closed_dates = set()
+    closed_dates: set = set()
     for row in (closures_q.execute().data or []):
         try:
             closed_dates.add(_parse_date(row["closure_date"]))
@@ -526,7 +523,7 @@ def generate_meal_plan():
             continue
 
     # ------------------------------------------------------------------
-    # 3. Build available dates
+    # 3. Available dates
     # ------------------------------------------------------------------
     requested_dates = list(_daterange(start_date, end_date))
     candidate_dates = requested_dates if include_weekends else [
@@ -562,20 +559,19 @@ def generate_meal_plan():
         }
 
     # ------------------------------------------------------------------
-    # 5. Fetch weekly menus
+    # 5. Weekly menus - recipe pool
     # ------------------------------------------------------------------
-    weekly_menus_resp = (
+    weekly_menus = (
         supabase.table("weekly_menu")
         .select("id, week_start_date, week_end_date, weekly_menu_recipe(recipe(*))")
         .lte("week_start_date", str(end_date))
         .gte("week_end_date",   str(start_date))
         .execute()
+        .data or []
     )
-    weekly_menus = weekly_menus_resp.data or []
     if not weekly_menus:
         return jsonify({"error": "No weekly menus found for this date range"}), 404
 
-    # Build date → allowed recipe IDs mapping
     allowed_recipe_ids_by_date: dict = defaultdict(set)
     recipes_by_id: dict = {}
 
@@ -585,7 +581,6 @@ def generate_meal_plan():
             we = _parse_date(wm["week_end_date"])
         except Exception:
             continue
-
         for wmr in (wm.get("weekly_menu_recipe") or []):
             recipe = (wmr or {}).get("recipe")
             if not recipe or not recipe.get("id"):
@@ -618,7 +613,7 @@ def generate_meal_plan():
     user_prefs = {p["recipe_id"]: p for p in (prefs_resp.data or [])}
 
     # ------------------------------------------------------------------
-    # 7. Pre-score recipes (base score only — composite_score adds day context)
+    # 7. Filter excluded recipes + build base scored list
     # ------------------------------------------------------------------
     scored_recipes: list = []
     for r in all_recipes:
@@ -652,33 +647,38 @@ def generate_meal_plan():
     if not macro_resp.data:
         return jsonify({"error": "No diet set, we're working on it!"}), 400
 
-    target      = macro_resp.data[0]
-    protein_g   = float(target.get("protein_g")   or 0)
-    carbs_g     = float(target.get("carbs_g")     or 0)
-    fat_g       = float(target.get("fat_g")       or 0)
-    kcal_target = float(
-        target.get("kcal_target")
-        or (4 * (protein_g + carbs_g) + 9 * fat_g)
-    )
+    t         = macro_resp.data[0]
+    protein_g = float(t.get("protein_g")  or 0)
+    carbs_g   = float(t.get("carbs_g")    or 0)
+    fat_g     = float(t.get("fat_g")      or 0)
+    kcal_t    = float(t.get("kcal_target") or (4 * (protein_g + carbs_g) + 9 * fat_g))
     target_with_kcal = {
         "protein_g": protein_g,
         "carbs_g":   carbs_g,
         "fat_g":     fat_g,
-        "kcal":      kcal_target,
+        "kcal":      kcal_t,
     }
 
     # ------------------------------------------------------------------
-    # 9. Generate plan — sequential, day-aware
+    # 9. BATCH PREFETCH - all auxiliary DB lookups done here, once
+    # ------------------------------------------------------------------
+    all_recipe_ids  = [r["id"] for r in all_recipes]
+    active_weekdays = list({d.weekday() for d in available_dates})
+
+    flex_stats  = prefetch_flex_stats(all_recipe_ids)
+    categories  = prefetch_categories(all_recipe_ids)
+    popularity  = prefetch_weekday_popularity(all_recipe_ids, active_weekdays)
+
+    # ------------------------------------------------------------------
+    # 10. Generate plan - sequential, day-aware
     # ------------------------------------------------------------------
     BEST_TRIES = int(data.get("day_build_tries") or BEST_DAY_TRIES_DEFAULT)
 
     days: list = []
-    recent_recipes_global  = deque(maxlen=RECENT_GLOBAL_MAXLEN)
-    meal_history           = deque(maxlen=MEAL_HISTORY_MAXLEN)
-
-    # These carry forward day-over-day to enforce semantic variety
-    yesterday_recipe_ids:  set       = set()
-    yesterday_categories:  frozenset = frozenset()
+    recent_recipes_global = deque(maxlen=RECENT_GLOBAL_MAXLEN)
+    meal_history          = deque(maxlen=MEAL_HISTORY_MAXLEN)
+    yesterday_recipe_ids: set       = set()
+    yesterday_categories: frozenset = frozenset()
 
     for date in available_dates:
         allowed_ids_today = allowed_recipe_ids_by_date.get(date, set())
@@ -694,6 +694,9 @@ def generate_meal_plan():
             weekday=date.weekday(),
             yesterday_recipe_ids=yesterday_recipe_ids,
             yesterday_categories=yesterday_categories,
+            flex_stats=flex_stats,
+            categories=categories,
+            popularity=popularity,
             best_tries=BEST_TRIES,
         )
 
@@ -708,10 +711,10 @@ def generate_meal_plan():
             meal_history.append(info["recipe_id"])
             recent_recipes_global.append(info["recipe_id"])
 
-        # Update "yesterday" context for the next iteration
+        # Update "yesterday" context for next iteration - uses prefetched categories
         yesterday_recipe_ids = {info["recipe_id"] for info in recipes_by_meal.values()}
         yesterday_categories = frozenset().union(
-            *(get_recipe_categories(rid) for rid in yesterday_recipe_ids)
+            *(categories.get(rid, frozenset()) for rid in yesterday_recipe_ids)
         )
 
         # Run macro optimizer
@@ -719,7 +722,7 @@ def generate_meal_plan():
             recipes_by_meal, target_with_kcal
         )
 
-        # Group subrecipes back by meal slot
+        # Group optimized subrecipes back by meal slot
         subs_by_meal: dict = {k: [] for k in recipes_by_meal}
         for sub in optimized_subs:
             mk = sub["meal_name"]
@@ -732,35 +735,36 @@ def generate_meal_plan():
                 })
 
         # Compute per-meal macro totals
-        macros_per_meal: dict = {}
-        for mk, subs in subs_by_meal.items():
-            macros_per_meal[mk] = {
+        macros_per_meal: dict = {
+            mk: {
                 "protein": int(sum(s["macros"]["protein"] for s in subs)),
                 "carbs":   int(sum(s["macros"]["carbs"]   for s in subs)),
                 "fat":     int(sum(s["macros"]["fat"]     for s in subs)),
                 "kcal":    int(sum(s["macros"]["kcal"]    for s in subs)),
             }
+            for mk, subs in subs_by_meal.items()
+        }
 
         meals_list = [
             {
-                "meal_key":   meal_key,
-                "meal_type":  info["meal_type"],
-                "recipe_id":  info["recipe_id"],
+                "meal_key":    meal_key,
+                "meal_type":   info["meal_type"],
+                "recipe_id":   info["recipe_id"],
                 "recipe_name": info["recipe_name"],
-                "photo":      info["photo"],
-                "macros":     macros_per_meal.get(meal_key, {}),
-                "subrecipes": subs_by_meal.get(meal_key, []),
+                "photo":       info["photo"],
+                "macros":      macros_per_meal.get(meal_key, {}),
+                "subrecipes":  subs_by_meal.get(meal_key, []),
             }
             for meal_key, info in recipes_by_meal.items()
         ]
 
         days.append({
-            "date":       str(date),
-            "weekday":    date.weekday(),
-            "is_weekend": _is_weekend(date),
+            "date":        str(date),
+            "weekday":     date.weekday(),
+            "is_weekend":  _is_weekend(date),
             "macro_error": loss,
-            "totals":     day_totals,
-            "meals":      meals_list,
+            "totals":      day_totals,
+            "meals":       meals_list,
         })
 
     return jsonify({
@@ -776,11 +780,8 @@ def generate_meal_plan():
 @mealplan_bp.route("/update_meal_plan", methods=["POST"])
 def update_meal_plan_endpoint():
     """
-    Input:
-      { "original_plan": {...}, "change_logs": [...] }
-
-    Output:
-      Updated optimized meal plan JSON (same shape as /generate_meal_plan).
+    Input:  { "original_plan": {...}, "change_logs": [...] }
+    Output: Updated optimized meal plan (same shape as /generate_meal_plan).
     """
     data          = request.get_json() or {}
     original_plan = data.get("original_plan")
