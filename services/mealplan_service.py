@@ -29,9 +29,9 @@ DEFAULT_MAX_SERVING = 3
 # Meal-type kcal distribution caps (relative to TOTAL solved kcal, not target).
 BREAKFAST_MAX_PCT   = 0.40
 SNACK_MAX_PCT       = 0.25
-DINNER_LUNCH_DIFF_PCT = 0.30   # |dinner - lunch| / smaller <= 30%
-NO_DINNER_YES_LUNCH_PCT = 0.70
-NO_LUNCH_YES_DINNER_PCT = 0.70
+DINNER_LUNCH_DIFF_PCT = 0.40   # |dinner - lunch| / smaller <= 30%
+NO_DINNER_YES_LUNCH_PCT = 0.60
+NO_LUNCH_YES_DINNER_PCT = 0.60
 
 # Objective weights — all expressed as fractions of their macro targets,
 # so a 10 g overshoot on protein is equally bad as 10 g on carbs (percentage-wise).
