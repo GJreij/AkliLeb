@@ -326,24 +326,20 @@ def _solve_lp_once(
     has_dinner    = "dinner"    in types
     has_snack     = "snack"     in types
 
-    # Helper: symmetric lunch/dinner balance constraint
-    def _add_lunch_dinner_balance():
-        d = kcal_by_type["dinner"]
-        l = kcal_by_type["lunch"]
-        prob += d - l <= DINNER_LUNCH_DIFF_PCT * l
-        prob += l - d <= DINNER_LUNCH_DIFF_PCT * d
-
     if has_breakfast and has_lunch and has_dinner and has_snack:
         prob += kcal_by_type["snack"]     <= SNACK_MAX_PCT     * total_K
         prob += kcal_by_type["breakfast"] <= BREAKFAST_MAX_PCT * total_K
-        _add_lunch_dinner_balance()
+        prob += kcal_by_type["dinner"] - kcal_by_type["lunch"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["lunch"]
+        prob += kcal_by_type["lunch"] - kcal_by_type["dinner"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["dinner"]
 
     elif has_snack and has_lunch and has_dinner and not has_breakfast:
         prob += kcal_by_type["snack"] <= SNACK_MAX_PCT * total_K
-        _add_lunch_dinner_balance()
+        prob += kcal_by_type["dinner"] - kcal_by_type["lunch"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["lunch"]
+        prob += kcal_by_type["lunch"] - kcal_by_type["dinner"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["dinner"]
 
     elif has_lunch and has_dinner and not has_snack and not has_breakfast:
-        _add_lunch_dinner_balance()
+        prob += kcal_by_type["dinner"] - kcal_by_type["lunch"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["lunch"]
+        prob += kcal_by_type["lunch"] - kcal_by_type["dinner"] <= DINNER_LUNCH_DIFF_PCT * kcal_by_type["dinner"]
 
     elif has_breakfast and has_lunch and has_snack and not has_dinner:
         prob += kcal_by_type["snack"]     <= SNACK_MAX_PCT     * total_K
