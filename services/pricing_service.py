@@ -12,11 +12,11 @@ DEFAULT_APPLY_KCAL_DISCOUNT = True
 
 def get_kcal_discount(kcal: float) -> float:
     """
-    Discount grows linearly from 0% at 1200kcal to 15% at 3000kcal.
+    Discount grows linearly from 0% at 1200kcal to 22% at 3000kcal.
     """
     min_kcal = 1200
     max_kcal = 3000
-    max_discount = 0.15
+    max_discount = 0.22
 
     if kcal is None:
         return 0.0

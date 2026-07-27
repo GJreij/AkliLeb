@@ -75,13 +75,18 @@ DAILY_TARGET = {"protein_g": 150.0, "carbs_g": 200.0, "fat_g": 60.0, "kcal": 194
 WEEK_LENGTH = 7
 
 # Per-gram prices mirroring services/pricing_service.py's macro_price table
-# shape (kept identical to the real formula -- not modified here).
+# shape (kept identical to the real formula -- not modified here). Values
+# below match the live macro_price row; update both if that row changes.
 PRICES = {
-    "protein_price_per_g": 0.045,
-    "carbs_price_per_g":   0.015,
-    "fat_price_per_g":     0.020,
-    "day_packaging_price": 0.50,
+    "protein_price_per_g": 0.071,
+    "carbs_price_per_g":   0.035,
+    "fat_price_per_g":     0.048,
+    "day_packaging_price": 0,
+    "recipe_packaging_price": 1,
 }
+
+# 4 meals/day (breakfast, lunch, snack, dinner) -- matches RECIPES_BY_MEAL.
+MEALS_PER_DAY = 4
 
 
 def _fake_get_recipe_subrecipes(recipe_id):
@@ -90,7 +95,7 @@ def _fake_get_recipe_subrecipes(recipe_id):
 
 def _get_kcal_discount(kcal):
     # Identical formula to services/pricing_service.get_kcal_discount
-    min_kcal, max_kcal, max_discount = 1200, 3000, 0.15
+    min_kcal, max_kcal, max_discount = 1200, 3000, 0.22
     if kcal <= min_kcal:
         return 0.0
     if kcal >= max_kcal:
@@ -198,7 +203,10 @@ def weekly_price(actual_totals):
     avg_daily_kcal = actual_totals["kcal"] / WEEK_LENGTH
     discount_pct = _get_kcal_discount(avg_daily_kcal)
     macro_cost_after_discount = base_macro_cost * (1 - discount_pct)
-    packaging_total = PRICES["day_packaging_price"] * WEEK_LENGTH
+    packaging_total = (
+        PRICES["day_packaging_price"] * WEEK_LENGTH
+        + PRICES["recipe_packaging_price"] * MEALS_PER_DAY * WEEK_LENGTH
+    )
     return round(macro_cost_after_discount + packaging_total, 2), discount_pct
 
 
@@ -280,7 +288,10 @@ def main():
         actual_totals["protein"] * PRICES["protein_price_per_g"]
         + actual_totals["carbs"] * PRICES["carbs_price_per_g"]
         + actual_totals["fat"] * PRICES["fat_price_per_g"]
-    ) * (1 - discount_pct) + PRICES["day_packaging_price"] * WEEK_LENGTH
+    ) * (1 - discount_pct) + (
+        PRICES["day_packaging_price"] * WEEK_LENGTH
+        + PRICES["recipe_packaging_price"] * MEALS_PER_DAY * WEEK_LENGTH
+    )
     print(f"  weekly_price() returned : {price}")
     print(f"  manual recomputation    : {round(manual_check, 2)}")
     print(f"  match: {abs(price - round(manual_check, 2)) < 0.01}")
