@@ -23,6 +23,17 @@ SAME_RECIPE_YESTERDAY_PENALTY = 10.0
 WEEKDAY_POPULARITY_WEIGHT     = 1.5
 FLEX_SUB_COUNT_WEIGHT         = 0.5
 FLEX_SUM_MAX_WEIGHT           = 0.1
+
+# Ranking-only proxies for "how much headroom does this subrecipe have to
+# flex toward the kcal target", used only when it has no explicit
+# max_serving ceiling (recipe_subrecipe.max_serving / subrecipe.max_serving
+# both unset) — the real ceiling (or lack of one) is enforced by the solver's
+# is_main/MAIN_RATIO logic in services/mealplan_service.py, not here. A main
+# with no ceiling can flex a lot; a non-main with no ceiling is still
+# structurally bounded below its meal's main, so it gets a smaller proxy,
+# similar in magnitude to the old flat default of 3.
+ASSUMED_MAIN_HEADROOM         = 6
+ASSUMED_NON_MAIN_HEADROOM     = 3
 BEST_DAY_TRIES_DEFAULT        = 30
 RECENT_GLOBAL_MAXLEN          = 10
 MEAL_HISTORY_MAXLEN           = 20
@@ -77,7 +88,7 @@ def prefetch_flex_stats(recipe_ids: list) -> dict:
 
     resp = (
         supabase.table("recipe_subrecipe")
-        .select("recipe_id, max_serving, subrecipe(max_serving)")
+        .select("recipe_id, max_serving, is_main, subrecipe(max_serving)")
         .in_("recipe_id", recipe_ids)
         .execute()
     )
@@ -93,7 +104,9 @@ def prefetch_flex_stats(recipe_ids: list) -> dict:
         override = rs.get("max_serving")
         base = sub.get("max_serving")
         resolved = override if override is not None else base
-        maxes[rid]  += int(resolved or 3)
+        if resolved is None:
+            resolved = ASSUMED_MAIN_HEADROOM if rs.get("is_main") else ASSUMED_NON_MAIN_HEADROOM
+        maxes[rid]  += int(resolved)
         counts[rid] += 1
 
     return {

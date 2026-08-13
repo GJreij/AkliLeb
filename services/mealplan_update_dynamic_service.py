@@ -120,7 +120,7 @@ def fetch_recipe_details(recipe_id: int) -> Dict[str, Any]:
         .select(
             "id, name, photo, "
             "could_be_breakfast, could_be_lunch, could_be_dinner, could_be_snack, "
-            "recipe_subrecipe(subrecipe(id, name, kcal, protein, carbs, fat, max_serving))"
+            "recipe_subrecipe(subrecipe(id, name, kcal, protein, carbs, fat))"
         )
         .eq("id", recipe_id)
         .single()
