@@ -77,7 +77,7 @@ def prefetch_flex_stats(recipe_ids: list) -> dict:
 
     resp = (
         supabase.table("recipe_subrecipe")
-        .select("recipe_id, subrecipe(max_serving)")
+        .select("recipe_id, max_serving, subrecipe(max_serving)")
         .in_("recipe_id", recipe_ids)
         .execute()
     )
@@ -90,7 +90,10 @@ def prefetch_flex_stats(recipe_ids: list) -> dict:
         if rid is None:
             continue
         sub = rs.get("subrecipe") or {}
-        maxes[rid]  += int(sub.get("max_serving") or 3)
+        override = rs.get("max_serving")
+        base = sub.get("max_serving")
+        resolved = override if override is not None else base
+        maxes[rid]  += int(resolved or 3)
         counts[rid] += 1
 
     return {

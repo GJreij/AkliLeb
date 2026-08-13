@@ -122,10 +122,15 @@ DEFAULT_SERVING_BALANCE_RATIO  = 2.5
 # =============================================================================
 
 def get_recipe_subrecipes(recipe_id: int) -> List[Dict[str, Any]]:
-    """Return subrecipes linked to a recipe, enriched with per-serving macros."""
+    """Return subrecipes linked to a recipe, enriched with per-serving macros.
+
+    max_serving resolution: a per-recipe override on the recipe_subrecipe
+    join row (set via the recipe editor) wins when present; otherwise falls
+    back to the subrecipe's own global max_serving; otherwise DEFAULT_MAX_SERVING.
+    """
     resp = (
         supabase.table("recipe_subrecipe")
-        .select("subrecipe(id, name, max_serving, kcal, protein, carbs, fat)")
+        .select("max_serving, subrecipe(id, name, max_serving, kcal, protein, carbs, fat)")
         .eq("recipe_id", recipe_id)
         .execute()
     )
@@ -133,10 +138,13 @@ def get_recipe_subrecipes(recipe_id: int) -> List[Dict[str, Any]]:
     subrecipes = []
     for rs in resp.data or []:
         sub = rs.get("subrecipe") or {}
+        override = rs.get("max_serving")
+        base = sub.get("max_serving")
+        resolved_max = override if override is not None else (base if base is not None else DEFAULT_MAX_SERVING)
         subrecipes.append({
             "id":          sub.get("id"),
             "name":        sub.get("name"),
-            "max_serving": sub.get("max_serving") or DEFAULT_MAX_SERVING,
+            "max_serving": resolved_max,
             "macros": {
                 "kcal":    float(sub.get("kcal")    or 0.0),
                 "protein": float(sub.get("protein") or 0.0),
