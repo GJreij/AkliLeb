@@ -39,6 +39,7 @@ Two-layer design:
 import heapq
 import math
 import random
+import threading
 from collections import defaultdict
 from datetime import date as date_cls, datetime
 from typing import Dict, List, Optional
@@ -69,6 +70,13 @@ SAME_RECIPE_YESTERDAY_PENALTY = 10.0
 # sets (0-1) * this weight; comparable magnitude to what the old
 # category penalty occupied for a typical 1-2 category overlap.
 SUBRECIPE_SIMILARITY_WEIGHT   = 8.0
+
+# A recipe's max achievable kcal (all subrecipes at max serving) must
+# reach at least this fraction of an EVEN per-meal-type split of the
+# client's daily target, or it's penalized as structurally too small to
+# plausibly serve that slot - see _feasibility_penalty.
+MIN_SHARE_OF_EVEN_SPLIT       = 0.5
+INFEASIBLE_CEILING_PENALTY    = 10.0
 
 
 # =============================================================================
@@ -172,6 +180,44 @@ def prefetch_recipe_macros(recipe_ids: list) -> dict:
     return dict(totals)
 
 
+def prefetch_full_subrecipes(recipe_ids: list) -> dict:
+    """{recipe_id: [{id, name, max_serving, is_main, macros}, ...]} - same
+    shape services/mealplan_service.py's get_recipe_subrecipes() returns
+    per-recipe, batched into one query. Feeds the day-level LP-feasibility
+    check below so it doesn't hit the DB once per recipe per candidate
+    during allocation (get_recipe_subrecipes itself is a live per-recipe
+    Supabase call with no batching)."""
+    if not recipe_ids:
+        return {}
+    resp = (
+        supabase.table("recipe_subrecipe")
+        .select("recipe_id, max_serving, is_main, subrecipe(id, name, max_serving, kcal, protein, carbs, fat)")
+        .in_("recipe_id", recipe_ids)
+        .execute()
+    )
+    out: dict = defaultdict(list)
+    for rs in (resp.data or []):
+        rid = rs.get("recipe_id")
+        sub = rs.get("subrecipe") or {}
+        if rid is None or not sub.get("id"):
+            continue
+        override = rs.get("max_serving")
+        base = sub.get("max_serving")
+        out[rid].append({
+            "id":          sub.get("id"),
+            "name":        sub.get("name"),
+            "max_serving": override if override is not None else base,
+            "is_main":     bool(rs.get("is_main")),
+            "macros": {
+                "kcal":    float(sub.get("kcal")    or 0.0),
+                "protein": float(sub.get("protein") or 0.0),
+                "carbs":   float(sub.get("carbs")   or 0.0),
+                "fat":     float(sub.get("fat")     or 0.0),
+            },
+        })
+    return dict(out)
+
+
 # =============================================================================
 # SCORING
 # =============================================================================
@@ -206,7 +252,35 @@ def similarity_penalty(rid: int, other_ids, subrecipe_sets: dict) -> float:
     return SUBRECIPE_SIMILARITY_WEIGHT * total
 
 
-def _quality_score(rid, weekday_range, flex_stats, popularity, recipe_macros, macro_target) -> float:
+def _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target, num_meal_types) -> float:
+    """Penalizes a recipe whose own kcal CEILING (all subrecipes at their
+    max serving) can't plausibly reach a workable share of this client's
+    daily target, regardless of how well it scores on macro-ratio or
+    popularity - a real bug found in production: "Seasonal Fruit" (one
+    56kcal subrecipe, max_serving=2 -> 112-168kcal ceiling) ranked fine
+    on macro-compat and got locked into the snack rotation for an
+    1800kcal target, where a workable snack needs real headroom above
+    that. The old greedy walk only hit recipes like this occasionally
+    (random weighted draw each time); this deterministic ranking would
+    otherwise lock it in for every date it's ranked into the rotation.
+
+    Floor is relative to an EVEN per-meal-type split of the target, not
+    a fixed number, so it scales correctly across the real kcal range
+    (population.json diets run 1000-3500kcal) instead of over-penalizing
+    small targets or under-penalizing large ones."""
+    flex = flex_stats.get(rid, {"sub_count": 1, "sum_max": 3})
+    avg_max = flex["sum_max"] / max(flex["sub_count"], 1)
+    est_max_kcal = recipe_macros.get(rid, {}).get("kcal", 0.0) * avg_max
+
+    even_split = macro_target.get("kcal", 0.0) / max(num_meal_types, 1)
+    floor = MIN_SHARE_OF_EVEN_SPLIT * even_split
+    if floor <= 0 or est_max_kcal >= floor:
+        return 0.0
+    shortfall_frac = 1.0 - (est_max_kcal / floor)
+    return INFEASIBLE_CEILING_PENALTY * shortfall_frac
+
+
+def _quality_score(rid, weekday_range, flex_stats, popularity, recipe_macros, macro_target, num_meal_types) -> float:
     """Day-invariant ranking score for the holistic allocator (seeding a
     SHARED template - no personal like/dislike bias belongs here)."""
     flex = flex_stats.get(rid, {"sub_count": 1, "sum_max": 3})
@@ -217,6 +291,7 @@ def _quality_score(rid, weekday_range, flex_stats, popularity, recipe_macros, ma
     else:
         avg_pop = 0.5
     q += WEEKDAY_POPULARITY_WEIGHT * avg_pop
+    q -= _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target, num_meal_types)
     return q
 
 
@@ -301,13 +376,201 @@ def get_current_leader(date, meal_type: str, fallback_recipe_id) -> tuple:
 
 
 # =============================================================================
+# DAY-LEVEL LP FEASIBILITY CHECK
+#
+# Found live: ranking each meal type independently (as the allocator
+# below does) never checks whether a given DAY's specific 4-recipe
+# combination is jointly solvable by the real LP under its normal
+# tolerance ladder (hard kcal band + hard macro bounds + meal-type
+# distribution caps, all simultaneously). The old greedy day-by-day walk
+# checked this implicitly - build_day_candidate drew 30 random full-day
+# combinations and score_day penalized ones whose combined estimated max
+# kcal fell short of target - so a badly-mismatched combination got
+# discarded before it was ever used. Ranking meal types independently
+# and assembling a day from four separate schedules has no equivalent
+# check, and because the schedules are deterministic (not re-rolled per
+# day), a day that happens to combine poorly-matched recipes doesn't
+# just fail once - it can recur every time that combination comes up.
+#
+# Real production symptom this fixes: a 2000kcal client hit
+# BEST_EFFORT_LP (mealplan_service.py's last-resort pass, which drops
+# BOTH the hard kcal band and hard macro bounds - meant to be rare) on
+# every single generated day, producing meal-type kcal swings like
+# snack=1000/dinner=500 in a ~2000kcal day.
+# =============================================================================
+
+# Single-worker (gunicorn default: sync, no threads - see Procfile) makes
+# this safe without a lock, but the lock is cheap insurance against a
+# future deploy-config change enabling threaded workers.
+_subrecipe_patch_lock = threading.Lock()
+
+
+def _day_is_lp_feasible(chosen_by_meal: dict, macro_target: dict, subrecipe_cache: dict) -> bool:
+    """Cheap feasibility probe: ONE direct call to mealplan_service's own
+    _solve_lp_once, at its loosest real tolerance tier (relaxed culinary,
+    widest kcal/macro bands, single serving-step) - not the full ladder
+    optimize_subrecipes() runs (up to ~24 solves: 2 culinary passes x 4
+    tolerance tiers x 3 serving-steps, before even trying BEST_EFFORT_LP).
+
+    Originally called optimize_subrecipes() directly via a monkey-patched
+    get_recipe_subrecipes, ~20-30x more expensive per check - fine for a
+    handful of calls, but with up to 20 repair attempts x multiple days,
+    real requests were taking minutes against Heroku's hard 30s request
+    timeout. This checks the loosest tier only: if that fails, tighter
+    tiers would too (superset check), and if it succeeds, some tier in
+    the real ladder will too - not necessarily the same one, but "clears
+    the ladder at all" is all this needs to answer.
+
+    Builds all_subs directly from the prefetched subrecipe_cache instead
+    of calling mealplan_service.get_recipe_subrecipes (a live per-recipe
+    Supabase call) - no monkey-patching needed at all."""
+    import services.mealplan_service as mealplan_service
+
+    recipes_by_meal = {
+        mt: {"recipe_id": rid, "meal_type": mt}
+        for mt, rid in chosen_by_meal.items()
+        if rid is not None
+    }
+    if len(recipes_by_meal) != len(chosen_by_meal):
+        return False
+
+    all_subs = []
+    for meal_key, info in recipes_by_meal.items():
+        for s in subrecipe_cache.get(info["recipe_id"], []):
+            max_serving = s.get("max_serving")
+            all_subs.append({
+                "meal":         meal_key,
+                "subrecipe_id": s["id"],
+                "name":         s["name"],
+                "macros":       s["macros"],
+                "is_main":      bool(s.get("is_main")),
+                "max_serving":  (float(int(max_serving)) if max_serving is not None else None),
+            })
+    if not all_subs:
+        return False
+
+    P_t = float(macro_target.get("protein_g") or 0.0)
+    C_t = float(macro_target.get("carbs_g")   or 0.0)
+    F_t = float(macro_target.get("fat_g")     or 0.0)
+    kcal_t = float(macro_target.get("kcal") or (4.0 * (P_t + C_t) + 9.0 * F_t))
+    if kcal_t <= 0:
+        return False
+
+    tol = mealplan_service.kcal_tolerance(kcal_t, mealplan_service.KCAL_TOLERANCES[-1])
+    macro_tols = {
+        m: mealplan_service.macro_tolerance(m, t, kcal_t, mealplan_service.BASE_MACRO_TOLERANCES[-1])
+        for m, t in (("protein", P_t), ("carbs", C_t), ("fat", F_t))
+    }
+
+    with _subrecipe_patch_lock:
+        result = mealplan_service._solve_lp_once(
+            all_subs=all_subs, recipes_by_meal=recipes_by_meal,
+            P_t=P_t, C_t=C_t, F_t=F_t, kcal_t=kcal_t,
+            serving_step=1.0, tol=tol, macro_tols=macro_tols,
+            allow_under_kcal=False, strict_culinary=False,
+            hard_bounds=True, macro_hard_bounds=True,
+        )
+    return result is not None
+
+
+# Measured empirically against real weekly_menu 28 data: plain random
+# 4-recipe day combinations clear the real solver's tolerance ladder
+# ~43% of the time (13/30 in the measurement that found this bug). At
+# that rate, 20 attempts fails to find ANY working combo with probability
+# 0.57^20 =~ 0.00006 - reliably succeeds. Trying the next-best-RANKED
+# alternative instead of a random one was tried first and performed
+# WORSE than chance (1/10) - recipes ranked close together tend to share
+# a similar macro profile (ranking is macro-compat-heavy), so "nearby"
+# swaps don't add the ratio DIVERSITY a day's 4 meals actually need to
+# jointly satisfy hard bounds on all three macros at once.
+MAX_REPAIR_ATTEMPTS_PER_DAY = 10
+
+
+def _repair_day_if_infeasible(
+    chosen_by_meal: dict, meal_types_by_pool_size: list,
+    eligible_today_by_type: dict, macro_target: dict, subrecipe_cache: dict,
+    rng: random.Random,
+) -> dict:
+    """If chosen_by_meal doesn't clear the real LP's normal tolerance
+    ladder, try random full-day recombinations (this rescue path only -
+    the primary allocation logic above stays fully deterministic/ranked)
+    and re-check each with the real solver. Returns the first combination
+    that clears the ladder, or the original if none of the bounded random
+    attempts do (kept over an infeasible-but-unchanged day since a
+    partial improvement is still better than none)."""
+    if _day_is_lp_feasible(chosen_by_meal, macro_target, subrecipe_cache):
+        return chosen_by_meal
+
+    for _ in range(MAX_REPAIR_ATTEMPTS_PER_DAY):
+        trial: dict = {}
+        used_today: set = set()
+        for mt in meal_types_by_pool_size:
+            eligible_today = [r for r in eligible_today_by_type.get(mt, []) if r not in used_today]
+            if not eligible_today:
+                trial = None
+                break
+            rid = rng.choice(eligible_today)
+            trial[mt] = rid
+            used_today.add(rid)
+        if trial is None:
+            continue
+        if _day_is_lp_feasible(trial, macro_target, subrecipe_cache):
+            return trial
+
+    return chosen_by_meal
+
+
+def repair_day_if_infeasible(
+    recipes_by_meal: dict, day_target: dict, eligible_by_meal_type: dict,
+    recipes_by_id: dict, subrecipe_cache: dict, rng: random.Random,
+) -> dict:
+    """Public entry point for routes/mealplan_routes.py's day loop.
+
+    Why this has to live there and not just inside get_or_create_week_
+    templates: weekly carry-over (mealplan_service.apply_weekly_carryover)
+    shifts a day's target by up to 25% based on the actual solved totals
+    of EARLIER days in the SAME request, computed sequentially in the
+    route's own loop - it isn't known yet at template-allocation time.
+    A combo that comfortably clears the ladder against the flat target
+    can still fail against a carry-over-shifted one, so the route calls
+    this right before/after its own optimize_subrecipes call, against
+    the real day_target that call will actually use.
+
+    `recipes_by_meal` is the route's own shape ({meal_key: {recipe_id,
+    meal_type, recipe_name, photo}}); returns the same shape, repaired
+    if needed and possible, unchanged otherwise."""
+    meal_key_by_type = {info["meal_type"]: mk for mk, info in recipes_by_meal.items()}
+    chosen_by_meal = {info["meal_type"]: info["recipe_id"] for info in recipes_by_meal.values()}
+    meal_types = list(chosen_by_meal.keys())
+
+    repaired = _repair_day_if_infeasible(
+        chosen_by_meal, meal_types, eligible_by_meal_type, day_target, subrecipe_cache, rng,
+    )
+    if repaired == chosen_by_meal:
+        return recipes_by_meal
+
+    out: dict = {}
+    for mt, rid in repaired.items():
+        mk = meal_key_by_type[mt]
+        recipe = recipes_by_id.get(rid, {})
+        out[mk] = {
+            "recipe_id":   rid,
+            "meal_key":    mk,
+            "meal_type":   mt,
+            "recipe_name": recipe.get("name"),
+            "photo":       recipe.get("photo"),
+        }
+    return out
+
+
+# =============================================================================
 # HOLISTIC WHOLE-RANGE ALLOCATOR (bootstrap template for un-templated dates)
 # =============================================================================
 
 def _allocate_holistic(
     to_generate: List, meal_types: List[str], eligible_by_date_and_type: Dict,
     flex_stats: dict, popularity: dict, recipe_macros: dict, macro_target: dict,
-    fixed_by_date: Dict,
+    fixed_by_date: Dict, subrecipe_cache: Dict, rng: random.Random,
 ) -> Dict:
     """Returns {date: {meal_type: recipe_id}} for dates in `to_generate`
     only. `eligible_by_date_and_type` is {date: {meal_type: [recipe_id,...]}}
@@ -339,13 +602,16 @@ def _allocate_holistic(
             union_pool[mt].update(eligible_by_date_and_type.get(d, {}).get(mt, []))
 
     meal_types_by_pool_size = sorted(meal_types, key=lambda mt: len(union_pool.get(mt, [])))
+    num_meal_types = len(meal_types)
 
     state: Dict[str, dict] = {}
     for mt in meal_types_by_pool_size:
         pool = list(union_pool.get(mt, []))
         ranked = sorted(
             pool,
-            key=lambda rid: _quality_score(rid, weekday_range, flex_stats, popularity, recipe_macros, macro_target),
+            key=lambda rid: _quality_score(
+                rid, weekday_range, flex_stats, popularity, recipe_macros, macro_target, num_meal_types
+            ),
             reverse=True,
         )
         counts = _fair_counts(ranked, n)
@@ -421,6 +687,25 @@ def _allocate_holistic(
             chosen_by_meal[mt] = chosen_rid
             used_today.add(chosen_rid)
             used_this_range[mt].add(chosen_rid)
+
+        # Day-level LP-feasibility check: this specific 4-recipe combo,
+        # not just each recipe individually, needs to be jointly solvable
+        # under the real solver's normal tolerance ladder - see the
+        # module comment above _day_is_lp_feasible for the production
+        # bug this closes (meal-type kcal swings from unchecked
+        # BEST_EFFORT_LP fallbacks).
+        eligible_today_by_type = eligible_by_date_and_type.get(d, {})
+        repaired = _repair_day_if_infeasible(
+            chosen_by_meal, meal_types_by_pool_size,
+            eligible_today_by_type, macro_target, subrecipe_cache, rng,
+        )
+        if repaired is not chosen_by_meal:
+            for mt, new_rid in repaired.items():
+                old_rid = chosen_by_meal.get(mt)
+                if new_rid != old_rid:
+                    used_this_range[mt].discard(old_rid)
+                    used_this_range[mt].add(new_rid)
+            chosen_by_meal = repaired
 
         result[d] = chosen_by_meal
 
@@ -505,6 +790,11 @@ def get_or_create_week_templates(
     is_high_kcal = macro_target.get("kcal", 0) > HIGH_KCAL_THRESHOLD
     meal_types = sorted(set(meals_map.values()))
 
+    # Feeds the day-level LP-feasibility check inside _allocate_holistic -
+    # prefetched once here (batched) instead of once per recipe per
+    # candidate during allocation.
+    subrecipe_cache = prefetch_full_subrecipes(list(recipes_by_id.keys()))
+
     eligible_by_date_and_type: Dict = {}
     for d in dates:
         allowed = allowed_recipe_ids_by_date.get(d, set())
@@ -522,6 +812,7 @@ def get_or_create_week_templates(
         chosen_by_date = _allocate_holistic(
             dates, meal_types, eligible_by_date_and_type,
             flex_stats, popularity, recipe_macros, macro_target, fixed_by_date={},
+            subrecipe_cache=subrecipe_cache, rng=rng,
         )
         return _finalize(chosen_by_date, dates, meals_map, recipes_by_id)
 
@@ -564,6 +855,7 @@ def get_or_create_week_templates(
     newly_generated = _allocate_holistic(
         to_generate, meal_types, eligible_by_date_and_type,
         flex_stats, popularity, recipe_macros, macro_target, fixed_by_date,
+        subrecipe_cache=subrecipe_cache, rng=rng,
     )
 
     # 3. Persist newly generated dates - same table/upsert shape as before.
@@ -629,6 +921,14 @@ def get_or_create_week_templates(
             resolved[mt] = new_rid
             used_today.add(new_rid)
         else:
+            # NOTE: a day-level feasibility check against `macro_target`
+            # (the flat, un-adjusted target) doesn't belong here - the
+            # ACTUAL solve for this day uses a weekly-carry-over-adjusted
+            # target computed sequentially in routes/mealplan_routes.py's
+            # day loop, which isn't known yet at this point. That route
+            # calls daily_menu_service.repair_day_if_infeasible() itself,
+            # against the real target, right where it calls
+            # optimize_subrecipes - see that function's docstring.
             final_by_date[d] = resolved
             yesterday_ids = set(resolved.values())
             continue

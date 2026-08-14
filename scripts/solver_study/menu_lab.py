@@ -67,6 +67,13 @@ MACRO_COMPAT_HARD_FILTER      = -2.5
 # real signal.
 SUBRECIPE_SIMILARITY_WEIGHT   = 8.0
 
+# A recipe's max achievable kcal (all subrecipes at max serving) must
+# reach at least this fraction of an EVEN per-meal-type split of the
+# client's daily target, or it's penalized as structurally too small to
+# plausibly serve that slot - see _feasibility_penalty.
+MIN_SHARE_OF_EVEN_SPLIT       = 0.5
+INFEASIBLE_CEILING_PENALTY    = 10.0
+
 
 @dataclass
 class ScoringConfig:
@@ -351,6 +358,27 @@ def run_greedy_week(
 # assembles days by combining the four independent schedules.
 # =============================================================================
 
+def _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target, num_meal_types=4) -> float:
+    """Penalizes a recipe whose own kcal CEILING (all subrecipes at max
+    serving) can't plausibly reach a workable share of the client's
+    daily target - found via this same study's live production test:
+    "Seasonal Fruit" (one 56kcal subrecipe, max_serving=2 -> ~168kcal
+    ceiling) ranked fine on macro-compat/flex/popularity alone and got
+    deterministically locked into the snack rotation for an 1800kcal
+    target, where the LP then had nowhere near enough headroom to give
+    snack a workable share - see services/daily_menu_service.py for the
+    production fix this mirrors."""
+    flex = flex_stats.get(rid, {"sub_count": 1, "sum_max": 3})
+    avg_max = flex["sum_max"] / max(flex["sub_count"], 1)
+    est_max_kcal = recipe_macros.get(rid, {}).get("kcal", 0.0) * avg_max
+    even_split = macro_target.get("kcal", 0.0) / max(num_meal_types, 1)
+    floor = MIN_SHARE_OF_EVEN_SPLIT * even_split
+    if floor <= 0 or est_max_kcal >= floor:
+        return 0.0
+    shortfall_frac = 1.0 - (est_max_kcal / floor)
+    return INFEASIBLE_CEILING_PENALTY * shortfall_frac
+
+
 def _quality_score(
     rid: int, flex_stats: dict, popularity: dict, recipe_macros: dict,
     macro_target: dict, num_days: int,
@@ -360,6 +388,7 @@ def _quality_score(
     q += macro_compat_score(rid, recipe_macros, macro_target)
     avg_pop = sum(popularity.get((rid, wd), 0.5) for wd in range(num_days)) / num_days
     q += WEEKDAY_POPULARITY_WEIGHT * avg_pop
+    q -= _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target)
     return q
 
 

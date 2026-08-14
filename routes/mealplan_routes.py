@@ -14,6 +14,8 @@ from services.daily_menu_service import (
     prefetch_subrecipe_sets,
     prefetch_weekday_popularity,
     prefetch_recipe_macros,
+    prefetch_full_subrecipes,
+    repair_day_if_infeasible,
 )
 from utils.event_logger import log_event
 
@@ -272,6 +274,17 @@ def generate_meal_plan():
     subrecipe_sets = prefetch_subrecipe_sets(all_recipe_ids)
     popularity     = prefetch_weekday_popularity(all_recipe_ids)
     recipe_macros  = prefetch_recipe_macros(all_recipe_ids)
+    subrecipe_cache = prefetch_full_subrecipes(all_recipe_ids)
+
+    meal_types = sorted(set(meals_map.values()))
+    eligible_by_date_and_type = {
+        d: {
+            mt: [rid for rid in allowed_recipe_ids_by_date.get(d, set())
+                 if recipes_by_id.get(rid, {}).get(f"could_be_{mt}")]
+            for mt in meal_types
+        }
+        for d in available_dates
+    }
 
     # ------------------------------------------------------------------
     # 9. Resolve the week's shared daily_menu templates in ONE holistic
@@ -329,6 +342,24 @@ def generate_meal_plan():
         optimized_subs, loss, day_totals = optimize_subrecipes(
             recipes_by_meal, day_target
         )
+
+        # If this combo didn't clear the solver's normal tolerance ladder
+        # (fell to BEST_EFFORT_LP or worse), try a repair against the
+        # REAL day_target - carry-over shifts a day's target by up to
+        # 25% from the flat target the template was validated against
+        # (see daily_menu_service.repair_day_if_infeasible), enough to
+        # flip an otherwise-fine combo into infeasible for days after
+        # the first. Re-solves once more only if a repair was found.
+        if not isinstance(day_totals.get("tolerance_used"), float):
+            repaired_recipes_by_meal = repair_day_if_infeasible(
+                recipes_by_meal, day_target, eligible_by_date_and_type.get(date, {}),
+                recipes_by_id, subrecipe_cache, rng,
+            )
+            if repaired_recipes_by_meal is not recipes_by_meal:
+                recipes_by_meal = repaired_recipes_by_meal
+                optimized_subs, loss, day_totals = optimize_subrecipes(
+                    recipes_by_meal, day_target
+                )
 
         cumulative_deviation = update_cumulative_deviation(
             cumulative_deviation, day_target, day_totals
