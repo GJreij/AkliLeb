@@ -57,6 +57,31 @@ def macro_tolerance(macro: str, grams_target: float, kcal_t: float, base_tol: fl
     tol = base_tol * (REFERENCE_KCAL_SHARE / max(share, 0.01))
     return max(MIN_MACRO_TOLERANCE, min(MAX_MACRO_TOLERANCE, tol))
 
+
+# Reference point for proportional kcal tolerance: below this target size,
+# every tier stays exactly its flat % (unchanged behavior). Above it, tiers
+# looser than KCAL_TOLERANCE_PROPORTIONAL_ABOVE tighten so the ABSOLUTE kcal
+# slack plateaus at a constant (base_tol * REFERENCE_KCAL) instead of
+# growing linearly with the target — e.g. base_tol=0.20: a 1500kcal target
+# keeps 300kcal of absolute slack; a 3000kcal target tightens to 10% = 300kcal,
+# not the 600kcal a flat 20% would allow. The 8%/10% tiers are exempted
+# entirely (KCAL_TOLERANCE_PROPORTIONAL_ABOVE = 0.10) — they're already
+# tight enough that scaling them down further just makes the strict tier
+# harder to hit for big-kcal clients, working against the goal.
+REFERENCE_KCAL = 1500.0
+MIN_KCAL_TOLERANCE = 0.04
+KCAL_TOLERANCE_PROPORTIONAL_ABOVE = 0.10  # rungs at or below this stay flat, always
+
+
+def kcal_tolerance(kcal_t: float, base_tol: float) -> float:
+    """Proportional kcal tolerance — see the module comment above."""
+    if base_tol <= KCAL_TOLERANCE_PROPORTIONAL_ABOVE:
+        return base_tol
+    if kcal_t <= 0 or kcal_t <= REFERENCE_KCAL:
+        return base_tol
+    return max(MIN_KCAL_TOLERANCE, base_tol * (REFERENCE_KCAL / kcal_t))
+
+
 # Half-step granularity tried after integer step fails for each tolerance.
 SERVING_STEP_FINE = 0.5
 
@@ -219,6 +244,29 @@ def _build_result(
     return optimized, loss, day_totals
 
 
+def _compute_fine_step_eligibility(all_subs: List[Dict]) -> set:
+    """Returns the set of all_subs indices allowed to use the 0.25-serving
+    step in the single-meal path's mixed-granularity attempt: every
+    subrecipe if the day is built entirely from single-subrecipe meals
+    (the exception — there's no main/non-main distinction to preserve when
+    a meal has only one item), otherwise only is_main subrecipes in meals
+    that have 2+ subrecipes."""
+    meal_sub_indices: Dict[str, List[int]] = defaultdict(list)
+    for idx, s in enumerate(all_subs):
+        meal_sub_indices[s["meal"]].append(idx)
+
+    if all(len(idxs) == 1 for idxs in meal_sub_indices.values()):
+        return set(range(len(all_subs)))
+
+    eligible = set()
+    for idxs in meal_sub_indices.values():
+        if len(idxs) >= 2:
+            for i in idxs:
+                if all_subs[i].get("is_main"):
+                    eligible.add(i)
+    return eligible
+
+
 # =============================================================================
 # SAFE FALLBACK (greedy heuristic — used only when LP is infeasible at all tolerances)
 # =============================================================================
@@ -367,12 +415,16 @@ def _solve_lp_once(
     C_t: float,
     F_t: float,
     kcal_t: float,
-    serving_step: float,
+    serving_step,   # 1.0, 0.5, or the sentinel string "mixed_quarter"
     tol: float,
     macro_tols: Dict[str, float],
     allow_under_kcal: bool,
     strict_culinary: bool = True,
     hard_bounds: bool = True,
+    macro_hard_bounds: bool = True,
+    protein_hard_bound: bool = False,
+    skip_balance: bool = False,
+    fine_eligible: set | None = None,
 ) -> Tuple[List[Dict], float, Dict] | None:
     """
     Build and solve one LP instance.
@@ -383,11 +435,15 @@ def _solve_lp_once(
        one macro for another based on absolute gram differences.
 
     2. Kcal deviation is soft-penalised in the objective AND hard-bounded by
-       the tolerance band.
+       the tolerance band (independently of macro_hard_bounds — see below).
 
-    3. Protein, carbs, and fat each have their own hard band (macro_tol),
-       so the solver cannot satisfy kcal while leaving any individual macro
-       far from its target.
+    3. Protein, carbs, and fat each have their own hard band (macro_tol)
+       when macro_hard_bounds=True (the multi-meal path, always). On the
+       single-meal path (macro_hard_bounds=False), macro accuracy is
+       "best-fit" via the objective only, UNLESS protein_hard_bound=True —
+       in that case protein alone gets a hard band while carbs/fat stay
+       best-fit, so kcal + protein both land within tolerance and only
+       carbs/fat float freely.
 
     4. Meal-type distribution caps are relative to total_K (not fixed kcal_t).
 
@@ -395,11 +451,18 @@ def _solve_lp_once(
        strict_culinary=False → RELAXED culinary constraint set (Pass 2).
        Macro hard-bands are identical in both passes.
 
+    6. skip_balance=True drops the main-vs-non-main ordering constraint
+       (used on single-meal days, where that ordering is what causes
+       structural infeasibility) but NEVER the main-vs-main MAIN_RATIO
+       bound between two mains sharing a meal — that check stops one main
+       from dominating another and has nothing to do with the single-meal
+       infeasibility problem skip_balance exists to solve.
+
     Returns None if the LP is infeasible or non-optimal.
     """
-    serving_min = SERVING_MIN_BY_STEP.get(serving_step, 1.0)
     culinary_tag = "strict" if strict_culinary else "relaxed"
-    label = f"MealPlan_tol{int(tol * 100)}_step{serving_step}_{culinary_tag}"
+    step_tag = serving_step if isinstance(serving_step, float) else "mixedQ"
+    label = f"MealPlan_tol{int(tol * 100)}_step{step_tag}_{culinary_tag}"
 
     # ------------------------------------------------------------------
     # Resolve culinary constraint values from the active constraint set.
@@ -424,13 +487,30 @@ def _solve_lp_once(
     prob = LpProblem(label, LpMinimize)
 
     # ------------------------------------------------------------------
-    # Decision variables
+    # Decision variables. "mixed_quarter": per-subrecipe unit step — 0.25
+    # for fine_eligible indices, 0.5 for everyone else, in the SAME LP
+    # simultaneously (not two separate solves).
     # ------------------------------------------------------------------
-    if serving_step == 1.0:
+    if serving_step == "mixed_quarter":
+        _fine = fine_eligible or set()
+        step_by_index = {i: (0.25 if i in _fine else 0.5) for i in range(len(all_subs))}
+        y = {
+            i: LpVariable(
+                f"y_{i}", lowBound=1,  # 1 unit = one step_i -- min is one 0.25 or 0.5 step
+                upBound=(
+                    int(round(float(all_subs[i]["max_serving"]) / step_by_index[i]))
+                    if all_subs[i]["max_serving"] is not None else None
+                ),
+                cat=LpInteger,
+            )
+            for i in range(len(all_subs))
+        }
+        servings_expr = {i: step_by_index[i] * y[i] for i in range(len(all_subs))}
+    elif serving_step == 1.0:
         x = {
             i: LpVariable(
                 f"x_{i}",
-                lowBound=int(serving_min),
+                lowBound=1,
                 upBound=(int(s["max_serving"]) if s["max_serving"] is not None else None),
                 cat=LpInteger,
             )
@@ -439,6 +519,7 @@ def _solve_lp_once(
         servings_expr = x
     else:
         # Half-step: encode as integer multiples of serving_step
+        serving_min = SERVING_MIN_BY_STEP.get(serving_step, 1.0)
         min_units = int(round(serving_min / serving_step))
         y = {
             i: LpVariable(
@@ -495,21 +576,27 @@ def _solve_lp_once(
     )
 
     # ------------------------------------------------------------------
-    # Hard kcal / per-macro band constraints — skippable via hard_bounds.
-    # When hard_bounds=False this becomes a BEST-EFFORT pass: no band can
-    # make it infeasible, so it always returns an answer, and the objective
-    # above already weighs all four macros simultaneously, so that answer
-    # is the mathematically closest achievable point to every target at
-    # once — not a single-minded "hit kcal, ignore everything else"
-    # compromise. Used as the step between the tolerance ladder and the
-    # greedy SAFE_FALLBACK so a structurally-infeasible target still gets a
-    # real LP answer instead of the heuristic's uncontrolled macro behaviour.
+    # Hard kcal band — skippable via hard_bounds. When hard_bounds=False
+    # this becomes a BEST-EFFORT pass: no band can make it infeasible, so
+    # it always returns an answer, and the objective above already weighs
+    # all four macros simultaneously, so that answer is the mathematically
+    # closest achievable point to every target at once. Used as the step
+    # between the tolerance ladder and the greedy SAFE_FALLBACK so a
+    # structurally-infeasible target still gets a real LP answer instead
+    # of the heuristic's uncontrolled macro behaviour.
+    #
+    # Macro hard bands are independent of the kcal band: macro_hard_bounds
+    # bounds all three (the multi-meal path, always); protein_hard_bound
+    # bounds protein alone when macro_hard_bounds=False (the single-meal
+    # path's protein-first attempt) — carbs/fat then stay best-fit only,
+    # pulled toward target by the objective but never hard-bounded.
     # ------------------------------------------------------------------
     if hard_bounds:
         prob += total_K <= (1.0 + tol) * kcal_t
         if not allow_under_kcal:
             prob += total_K >= (1.0 - tol) * kcal_t
 
+    if macro_hard_bounds:
         if P_t > 0:
             prob += total_P >= (1.0 - macro_tols["protein"]) * P_t
             prob += total_P <= (1.0 + macro_tols["protein"]) * P_t
@@ -519,12 +606,18 @@ def _solve_lp_once(
         if F_t > 0:
             prob += total_F >= (1.0 - macro_tols["fat"]) * F_t
             prob += total_F <= (1.0 + macro_tols["fat"]) * F_t
+    elif protein_hard_bound and P_t > 0:
+        prob += total_P >= (1.0 - macro_tols["protein"]) * P_t
+        prob += total_P <= (1.0 + macro_tols["protein"]) * P_t
 
     # ------------------------------------------------------------------
     # Intra-meal serving balance, driven by is_main:
+    #   - the main-vs-main MAIN_RATIO bound between two mains sharing a
+    #     meal is ALWAYS active, regardless of skip_balance — it stops one
+    #     main dominating another and is unrelated to what skip_balance
+    #     exists to relax.
     #   - every main's servings >= every non-main's servings in that meal
-    #   - any two mains in the same meal are bounded against each other by
-    #     MAIN_RATIO, in both directions
+    #     is the ordering skip_balance drops (single-meal days only).
     # Every recipe with >1 subrecipe is expected to have >=1 main (enforced
     # at data-entry time in the admin UI); a meal with no mains at all would
     # leave this block a no-op for that meal, so it's still worth guarding
@@ -539,13 +632,16 @@ def _solve_lp_once(
             continue
         _mains = [i for i in _indices if all_subs[i]["is_main"]]
         _non_mains = [i for i in _indices if not all_subs[i]["is_main"]]
-        for _m in _mains:
-            for _n in _non_mains:
-                prob += servings_expr[_m] >= servings_expr[_n]
+
         for _m1 in _mains:
             for _m2 in _mains:
                 if _m1 != _m2:
                     prob += servings_expr[_m1] <= MAIN_RATIO * servings_expr[_m2]
+
+        if not skip_balance:
+            for _m in _mains:
+                for _n in _non_mains:
+                    prob += servings_expr[_m] >= servings_expr[_n]
 
     # ------------------------------------------------------------------
     # Meal-type kcal distribution constraints
@@ -631,13 +727,16 @@ def _solve_lp_once(
     ))
 
     day_totals = {
-        "protein":           int(round(value(total_P))),
-        "carbs":             int(round(value(total_C))),
-        "fat":               int(round(value(total_F))),
-        "kcal":              int(round(value(total_K))),
-        "tolerance_used":    tol if hard_bounds else "BEST_EFFORT_LP",
-        "serving_step_used": serving_step,
-        "culinary_pass":     "strict" if strict_culinary else "relaxed",
+        "protein":            int(round(value(total_P))),
+        "carbs":              int(round(value(total_C))),
+        "fat":                int(round(value(total_F))),
+        "kcal":               int(round(value(total_K))),
+        "tolerance_used":     tol if hard_bounds else "BEST_EFFORT_LP",
+        "serving_step_used":  serving_step,
+        "culinary_pass":      "strict" if strict_culinary else "relaxed",
+        "macro_hard_bounds":  macro_hard_bounds,
+        "protein_hard_bound": protein_hard_bound,
+        "skip_balance":       skip_balance,
     }
 
     optimized = []
@@ -752,8 +851,64 @@ def optimize_subrecipes(
             all_subs, recipes_by_meal, P_t, C_t, F_t, kcal_t, allow_under_kcal
         )
 
+    fine_eligible = _compute_fine_step_eligibility(all_subs)
+    is_single_meal = len(recipes_by_meal) == 1
+    STEPS = (1.0, SERVING_STEP_FINE, "mixed_quarter")
+
     # ------------------------------------------------------------------
-    # 3. Two-pass tolerance ladder.
+    # 3a. Single-meal days: kcal + protein bounded, carbs/fat best-fit only.
+    #
+    #    A day made of exactly one meal has no other meal to balance
+    #    against, so the multi-meal balance/culinary machinery below
+    #    doesn't apply the same way — dropping macro hard bounds entirely
+    #    (protein/carbs/fat all best-fit) lets the LP always find a kcal-
+    #    tight answer instead of going infeasible on a target/recipe
+    #    mismatch. Protein is brought back as a hard bound first — same
+    #    share-scaled tolerance the multi-meal path uses — so it lands as
+    #    close to target as the recipe allows; carbs/fat stay best-fit
+    #    only. If protein's bound is infeasible at a tier (most often a
+    #    single-subrecipe meal, where one serving count can't satisfy
+    #    kcal + protein simultaneously — though this can also happen with
+    #    a 2-subrecipe meal that simply lacks the protein density), fall
+    #    straight back to a fully-unbounded attempt at the same tier
+    #    before moving to the next one.
+    # ------------------------------------------------------------------
+    if is_single_meal:
+        zero_macro_tols = {"protein": 0.0, "carbs": 0.0, "fat": 0.0}
+        for base_kcal_tol, base_macro_tol in zip(KCAL_TOLERANCES, BASE_MACRO_TOLERANCES):
+            tol = kcal_tolerance(kcal_t, base_kcal_tol)
+            protein_tol = macro_tolerance("protein", P_t, kcal_t, base_macro_tol)
+            protein_macro_tols = {"protein": protein_tol, "carbs": 0.0, "fat": 0.0}
+
+            for step in STEPS:
+                result = _solve_lp_once(
+                    all_subs=all_subs, recipes_by_meal=recipes_by_meal,
+                    P_t=P_t, C_t=C_t, F_t=F_t, kcal_t=kcal_t,
+                    serving_step=step, tol=tol, macro_tols=protein_macro_tols,
+                    allow_under_kcal=allow_under_kcal, strict_culinary=True,
+                    hard_bounds=True, macro_hard_bounds=False, protein_hard_bound=True,
+                    skip_balance=True, fine_eligible=fine_eligible,
+                )
+                if result is not None:
+                    return result
+
+            for step in STEPS:
+                result = _solve_lp_once(
+                    all_subs=all_subs, recipes_by_meal=recipes_by_meal,
+                    P_t=P_t, C_t=C_t, F_t=F_t, kcal_t=kcal_t,
+                    serving_step=step, tol=tol, macro_tols=zero_macro_tols,
+                    allow_under_kcal=allow_under_kcal, strict_culinary=True,
+                    hard_bounds=True, macro_hard_bounds=False, protein_hard_bound=False,
+                    skip_balance=True, fine_eligible=fine_eligible,
+                )
+                if result is not None:
+                    return result
+        return _safe_fallback(
+            all_subs, recipes_by_meal, P_t, C_t, F_t, kcal_t, allow_under_kcal
+        )
+
+    # ------------------------------------------------------------------
+    # 3b. Multi-meal days: two-pass tolerance ladder.
     #
     #    Pass 1 — STRICT culinary constraints:
     #      Tighter balance ratios and meal-type caps.  Best plate aesthetics.
@@ -774,15 +929,21 @@ def optimize_subrecipes(
     #      practically unreachable, since Pass 3 has no hard bounds to
     #      violate and the remaining constraints — serving balance/rules,
     #      meal-type distribution — are satisfiable at minimum servings).
+    #
+    #    Every rung tries all three granularities (1.0, 0.5, mixed_quarter)
+    #    before moving to the next — mixed_quarter drops eligible
+    #    subrecipes (mains in a multi-subrecipe meal) to a 0.25 step while
+    #    everything else stays on 0.5, in the same LP.
     # ------------------------------------------------------------------
     for strict_culinary in (True, False):
-        for tol, base_macro_tol in zip(KCAL_TOLERANCES, BASE_MACRO_TOLERANCES):
+        for base_kcal_tol, base_macro_tol in zip(KCAL_TOLERANCES, BASE_MACRO_TOLERANCES):
+            tol = kcal_tolerance(kcal_t, base_kcal_tol)
             macro_tols = {
                 "protein": macro_tolerance("protein", P_t, kcal_t, base_macro_tol),
                 "carbs":   macro_tolerance("carbs",   C_t, kcal_t, base_macro_tol),
                 "fat":     macro_tolerance("fat",      F_t, kcal_t, base_macro_tol),
             }
-            for step in (1.0, SERVING_STEP_FINE):
+            for step in STEPS:
                 result = _solve_lp_once(
                     all_subs=all_subs,
                     recipes_by_meal=recipes_by_meal,
@@ -795,6 +956,8 @@ def optimize_subrecipes(
                     macro_tols=macro_tols,
                     allow_under_kcal=allow_under_kcal,
                     strict_culinary=strict_culinary,
+                    macro_hard_bounds=True,
+                    fine_eligible=fine_eligible,
                 )
                 if result is not None:
                     return result
@@ -804,8 +967,9 @@ def optimize_subrecipes(
         "carbs":   macro_tolerance("carbs",   C_t, kcal_t, BASE_MACRO_TOLERANCES[-1]),
         "fat":     macro_tolerance("fat",      F_t, kcal_t, BASE_MACRO_TOLERANCES[-1]),
     }
+    final_tol = kcal_tolerance(kcal_t, KCAL_TOLERANCES[-1])
     for strict_culinary in (False, True):
-        for step in (1.0, SERVING_STEP_FINE):
+        for step in STEPS:
             result = _solve_lp_once(
                 all_subs=all_subs,
                 recipes_by_meal=recipes_by_meal,
@@ -814,11 +978,13 @@ def optimize_subrecipes(
                 F_t=F_t,
                 kcal_t=kcal_t,
                 serving_step=step,
-                tol=KCAL_TOLERANCES[-1],
+                tol=final_tol,
                 macro_tols=final_macro_tols,
                 allow_under_kcal=allow_under_kcal,
                 strict_culinary=strict_culinary,
                 hard_bounds=False,
+                macro_hard_bounds=False,
+                fine_eligible=fine_eligible,
             )
             if result is not None:
                 return result
