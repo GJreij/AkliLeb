@@ -1,0 +1,813 @@
+{
+  "source_weekly_menu_id": 28,
+  "pool_size": 18,
+  "eligible_counts": {
+    "breakfast": 4,
+    "lunch": 10,
+    "dinner": 11,
+    "snack": 5
+  },
+  "recipes": {
+    "37": {
+      "id": 37,
+      "name": "Chicken Fredo",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 125,
+          "name": "Chicken For Pasta",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 133.65,
+            "protein": 22.5,
+            "carbs": 0.0,
+            "fat": 4.85
+          }
+        },
+        {
+          "subrecipe_id": 52,
+          "name": "Chicken Fredo (Pasta + Sauce)",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 256.53,
+            "protein": 7.49,
+            "carbs": 38.53,
+            "fat": 8.05
+          }
+        }
+      ]
+    },
+    "74": {
+      "id": 74,
+      "name": "Chicken Fajita Pasta",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 125,
+          "name": "Chicken For Pasta",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 133.65,
+            "protein": 22.5,
+            "carbs": 0.0,
+            "fat": 4.85
+          }
+        },
+        {
+          "subrecipe_id": 103,
+          "name": "Fajita Pasta (Pasta + Sauce)",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 302.85,
+            "protein": 8.5,
+            "carbs": 46.18,
+            "fat": 9.35
+          }
+        }
+      ]
+    },
+    "47": {
+      "id": 47,
+      "name": "Chicken Stir Fry",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 68,
+          "name": "Rice Chicken Broth",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 87.98,
+            "protein": 1.68,
+            "carbs": 19.7,
+            "fat": 0.28
+          }
+        },
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 72,
+          "name": "Chicken Stir Fry Main",
+          "is_main": true,
+          "optional": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 237.4,
+            "protein": 36.48,
+            "carbs": 8.25,
+            "fat": 6.5
+          }
+        }
+      ]
+    },
+    "56": {
+      "id": 56,
+      "name": "Homestyle Beef Pasta",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 126,
+          "name": "Meat for Pasta",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 156.98,
+            "protein": 20.35,
+            "carbs": 2.53,
+            "fat": 7.28
+          }
+        },
+        {
+          "subrecipe_id": 81,
+          "name": "Homestyle Beef Pasta (Pasta + Sauce)",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 201.23,
+            "protein": 6.8,
+            "carbs": 39.18,
+            "fat": 1.93
+          }
+        }
+      ]
+    },
+    "57": {
+      "id": 57,
+      "name": "Kebbe Bel Sayniye",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 83,
+          "name": "Yogurt",
+          "is_main": false,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 62.7,
+            "protein": 3.2,
+            "carbs": 4.6,
+            "fat": 3.5
+          }
+        },
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 82,
+          "name": "Kebbe Bel Sayniye",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 233.76,
+            "protein": 20.01,
+            "carbs": 20.66,
+            "fat": 7.9
+          }
+        }
+      ]
+    },
+    "80": {
+      "id": 80,
+      "name": "Salmon with Sweet Potato &  Vegetables",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 109,
+          "name": "Salmon Sweet Potato Vegetables",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 339.55,
+            "protein": 26.1,
+            "carbs": 32.8,
+            "fat": 11.55
+          }
+        }
+      ]
+    },
+    "34": {
+      "id": 34,
+      "name": "Shawarma Meat Plate",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 54,
+          "name": "Pickles",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 4.0,
+            "protein": 0.2,
+            "carbs": 0.8,
+            "fat": 0.0
+          }
+        },
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 49,
+          "name": "Shawarma Meat",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 208.65,
+            "protein": 30.3,
+            "carbs": 2.4,
+            "fat": 8.65
+          }
+        },
+        {
+          "subrecipe_id": 48,
+          "name": "Tarator Sauce",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 5,
+          "macros": {
+            "kcal": 69.05,
+            "protein": 2.88,
+            "carbs": 2.35,
+            "fat": 5.35
+          }
+        },
+        {
+          "subrecipe_id": 29,
+          "name": "Pita Bread",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 104.7,
+            "protein": 3.35,
+            "carbs": 21.7,
+            "fat": 0.5
+          }
+        }
+      ]
+    },
+    "50": {
+      "id": 50,
+      "name": "Siyadiye",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 70,
+          "name": "Rice Fish Broth",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 87.98,
+            "protein": 1.68,
+            "carbs": 19.7,
+            "fat": 0.28
+          }
+        },
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 75,
+          "name": "Siyadiye Main",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 153.53,
+            "protein": 13.67,
+            "carbs": 0.94,
+            "fat": 10.57
+          }
+        },
+        {
+          "subrecipe_id": 48,
+          "name": "Tarator Sauce",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 69.05,
+            "protein": 2.88,
+            "carbs": 2.35,
+            "fat": 5.35
+          }
+        }
+      ]
+    },
+    "46": {
+      "id": 46,
+      "name": "Chicken Mango Salad",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 67,
+          "name": "Chicken Mango Salad Dressing",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 57.15,
+            "protein": 0.33,
+            "carbs": 8.22,
+            "fat": 2.55
+          }
+        },
+        {
+          "subrecipe_id": 66,
+          "name": "Chicken Mango Salad Main",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 308.88,
+            "protein": 37.67,
+            "carbs": 26.6,
+            "fat": 5.76
+          }
+        }
+      ]
+    },
+    "30": {
+      "id": 30,
+      "name": "Roasted Chicken & Potatoes",
+      "could_be_lunch": true,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "subrecipe_id": 29,
+          "name": "Pita Bread",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 104.7,
+            "protein": 3.35,
+            "carbs": 21.7,
+            "fat": 0.5
+          }
+        },
+        {
+          "subrecipe_id": 42,
+          "name": "Oven Chicken Potatoes",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 266.2,
+            "protein": 35.93,
+            "carbs": 16.45,
+            "fat": 6.3
+          }
+        }
+      ]
+    },
+    "41": {
+      "id": 41,
+      "name": "Greek Yogurt and Nuts",
+      "could_be_lunch": false,
+      "could_be_snack": true,
+      "could_be_dinner": false,
+      "could_be_breakfast": true,
+      "subrecipes": [
+        {
+          "subrecipe_id": 26,
+          "name": "Honey",
+          "is_main": true,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 33.0,
+            "protein": 0.03,
+            "carbs": 8.22,
+            "fat": 0.0
+          }
+        },
+        {
+          "subrecipe_id": 58,
+          "name": "Mixed Nuts",
+          "is_main": false,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 61.29,
+            "protein": 2.0,
+            "carbs": 1.33,
+            "fat": 5.33
+          }
+        },
+        {
+          "subrecipe_id": 24,
+          "name": "Greek Yogurt (Plain)",
+          "is_main": true,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 127.6,
+            "protein": 15.0,
+            "carbs": 7.0,
+            "fat": 4.4
+          }
+        }
+      ]
+    },
+    "61": {
+      "id": 61,
+      "name": "Za\u2019atar Labneh Sandwich",
+      "could_be_lunch": false,
+      "could_be_snack": false,
+      "could_be_dinner": false,
+      "could_be_breakfast": true,
+      "subrecipes": [
+        {
+          "subrecipe_id": 88,
+          "name": "Cherry Tomato",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 13.35,
+            "protein": 0.5,
+            "carbs": 2.5,
+            "fat": 0.15
+          }
+        },
+        {
+          "subrecipe_id": 87,
+          "name": "Labne Zaatar Sandwish",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 291.34,
+            "protein": 12.63,
+            "carbs": 55.39,
+            "fat": 2.14
+          }
+        }
+      ]
+    },
+    "63": {
+      "id": 63,
+      "name": "Grilled Halloumi & Turkey Sandwich",
+      "could_be_lunch": false,
+      "could_be_snack": false,
+      "could_be_dinner": true,
+      "could_be_breakfast": true,
+      "subrecipes": [
+        {
+          "subrecipe_id": 34,
+          "name": "Pain Demi",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 237.6,
+            "protein": 6.4,
+            "carbs": 44.0,
+            "fat": 4.0
+          }
+        },
+        {
+          "subrecipe_id": 89,
+          "name": "Halloumi Sandwish (Halloumi + Turkey)",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 185.47,
+            "protein": 17.16,
+            "carbs": 0.97,
+            "fat": 12.55
+          }
+        }
+      ]
+    },
+    "42": {
+      "id": 42,
+      "name": "Avocado & Egg Toast",
+      "could_be_lunch": false,
+      "could_be_snack": false,
+      "could_be_dinner": false,
+      "could_be_breakfast": true,
+      "subrecipes": [
+        {
+          "subrecipe_id": 59,
+          "name": "Avocado & Egg Toast",
+          "is_main": true,
+          "optional": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 137.95,
+            "protein": 10.0,
+            "carbs": 2.25,
+            "fat": 9.89
+          }
+        },
+        {
+          "subrecipe_id": 34,
+          "name": "Pain Demi",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 237.6,
+            "protein": 6.4,
+            "carbs": 44.0,
+            "fat": 4.0
+          }
+        }
+      ]
+    },
+    "59": {
+      "id": 59,
+      "name": "Energy Bomb: Halawa, Dates & Nuts",
+      "could_be_lunch": false,
+      "could_be_snack": true,
+      "could_be_dinner": false,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 85,
+          "name": "Halawa Date Mixed Nuts",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 10,
+          "macros": {
+            "kcal": 127.85,
+            "protein": 2.6,
+            "carbs": 17.07,
+            "fat": 5.47
+          }
+        }
+      ]
+    },
+    "62": {
+      "id": 62,
+      "name": "Peanut Butter Cookie",
+      "could_be_lunch": false,
+      "could_be_snack": true,
+      "could_be_dinner": false,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 78,
+          "name": "Peanut Butter Cookie",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 10,
+          "macros": {
+            "kcal": 173.86,
+            "protein": 5.76,
+            "carbs": 20.39,
+            "fat": 7.7
+          }
+        }
+      ]
+    },
+    "60": {
+      "id": 60,
+      "name": "Salade de Fruits",
+      "could_be_lunch": false,
+      "could_be_snack": true,
+      "could_be_dinner": false,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 86,
+          "name": "Salade De Fruit",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 10,
+          "macros": {
+            "kcal": 128.38,
+            "protein": 1.42,
+            "carbs": 29.51,
+            "fat": 0.52
+          }
+        }
+      ]
+    },
+    "52": {
+      "id": 52,
+      "name": "Seasonal Fruit",
+      "could_be_lunch": false,
+      "could_be_snack": true,
+      "could_be_dinner": false,
+      "could_be_breakfast": false,
+      "subrecipes": [
+        {
+          "subrecipe_id": 77,
+          "name": "Seasonal Fruit",
+          "is_main": false,
+          "optional": false,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 55.94,
+            "protein": 0.7,
+            "carbs": 12.7,
+            "fat": 0.26
+          }
+        }
+      ]
+    }
+  },
+  "popularity_counts": {
+    "34:4": 3,
+    "30:0": 3,
+    "30:1": 7,
+    "34:3": 4,
+    "57:1": 9,
+    "57:0": 6,
+    "30:4": 2,
+    "62:1": 11,
+    "63:1": 6,
+    "37:3": 10,
+    "34:0": 11,
+    "30:3": 4,
+    "50:4": 4,
+    "46:2": 5,
+    "63:3": 7,
+    "37:2": 5,
+    "34:2": 5,
+    "60:0": 6,
+    "41:1": 3,
+    "46:3": 8,
+    "30:2": 6,
+    "34:1": 6,
+    "61:1": 4,
+    "47:2": 5,
+    "47:0": 3,
+    "59:1": 5,
+    "46:1": 6,
+    "57:3": 8,
+    "63:0": 2,
+    "61:2": 5,
+    "56:1": 3,
+    "62:0": 5,
+    "52:1": 6,
+    "57:4": 2,
+    "80:2": 7,
+    "47:1": 13,
+    "80:3": 12,
+    "59:0": 5,
+    "60:1": 7,
+    "52:0": 3,
+    "52:3": 7,
+    "52:2": 8,
+    "62:2": 10,
+    "60:2": 9,
+    "41:0": 8,
+    "42:1": 3,
+    "52:4": 5,
+    "56:4": 4,
+    "62:3": 2,
+    "62:4": 4,
+    "63:4": 4,
+    "42:2": 3,
+    "47:4": 1,
+    "46:0": 4,
+    "41:3": 4,
+    "37:1": 4,
+    "59:3": 7,
+    "37:0": 6,
+    "80:0": 5,
+    "56:2": 5,
+    "47:3": 4,
+    "61:3": 3,
+    "42:0": 2,
+    "63:2": 3,
+    "80:1": 1,
+    "60:4": 7,
+    "60:3": 7,
+    "41:2": 5,
+    "46:4": 4,
+    "50:1": 4,
+    "56:0": 1,
+    "37:4": 6,
+    "50:0": 4,
+    "41:4": 1,
+    "59:2": 1,
+    "74:2": 5,
+    "61:0": 3,
+    "50:2": 3,
+    "57:2": 2,
+    "74:3": 3,
+    "74:4": 1,
+    "74:0": 3,
+    "56:3": 1,
+    "42:3": 1,
+    "42:4": 1,
+    "61:4": 1
+  }
+}
