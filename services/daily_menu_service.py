@@ -790,6 +790,11 @@ def get_or_create_week_templates(
     is_high_kcal = macro_target.get("kcal", 0) > HIGH_KCAL_THRESHOLD
     meal_types = sorted(set(meals_map.values()))
 
+    # Feeds the day-level LP-feasibility check inside _allocate_holistic -
+    # prefetched once here (batched) instead of once per recipe per
+    # candidate during allocation.
+    subrecipe_cache = prefetch_full_subrecipes(list(recipes_by_id.keys()))
+
     # eligible_by_date_and_type must cover ALL meal types, not just the
     # ones this request asked for. `picks` below is read straight off the
     # shared daily_menu table and can carry meal-type slots from an
