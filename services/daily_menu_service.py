@@ -790,20 +790,34 @@ def get_or_create_week_templates(
     is_high_kcal = macro_target.get("kcal", 0) > HIGH_KCAL_THRESHOLD
     meal_types = sorted(set(meals_map.values()))
 
-    # Feeds the day-level LP-feasibility check inside _allocate_holistic -
-    # prefetched once here (batched) instead of once per recipe per
-    # candidate during allocation.
-    subrecipe_cache = prefetch_full_subrecipes(list(recipes_by_id.keys()))
-
+    # eligible_by_date_and_type must cover ALL meal types, not just the
+    # ones this request asked for. `picks` below is read straight off the
+    # shared daily_menu table and can carry meal-type slots from an
+    # earlier, broader request (e.g. an original 4-meal order) even when
+    # this call only asks for one of them. The per-client swap pass
+    # further down evaluates every slot in `picks` (a client's dislike on
+    # a meal type they didn't even order still has to be repairable), and
+    # was looking up eligible_by_date_and_type.get(d, {}).get(mt, []) for
+    # those unrequested types - which used to come back [] because this
+    # dict only had keys for the requested subset, so any unrequested
+    # slot the client happened to dislike had zero swap candidates and
+    # took the whole day down with a false "Not enough unique recipes"
+    # 404 - confirmed live: user 00818acd's daily_menu for 2026-08-17 had
+    # lunch/snack slots baked in from an earlier 4-meal order that this
+    # client dislikes, and a follow-up 1-meal (dinner-only) order failed
+    # even though dinner itself was a liked recipe with plenty of
+    # candidates. `meal_types` (requested-only) is still what's passed to
+    # _allocate_holistic below, so template generation for brand-new
+    # dates is unaffected - this only widens the swap-repair's pool.
     eligible_by_date_and_type: Dict = {}
     for d in dates:
         allowed = allowed_recipe_ids_by_date.get(d, set())
-        by_type = {mt: [] for mt in meal_types}
+        by_type = {mt: [] for mt in MEAL_TYPES}
         for rid in allowed:
             r = recipes_by_id.get(rid)
             if not r:
                 continue
-            for mt in meal_types:
+            for mt in MEAL_TYPES:
                 if r.get(f"could_be_{mt}"):
                     by_type[mt].append(rid)
         eligible_by_date_and_type[d] = by_type
