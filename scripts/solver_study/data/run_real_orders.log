@@ -1,0 +1,42 @@
+
+=== version=v3: 384 real historical days ===
+  50/384 (12.2s elapsed)
+  100/384 (23.6s elapsed)
+  150/384 (46.0s elapsed)
+  200/384 (65.7s elapsed)
+  250/384 (89.1s elapsed)
+  300/384 (113.6s elapsed)
+  350/384 (135.3s elapsed)
+  384/384 (154.5s elapsed)
+  Done in 154.5s
+
+=== version=v4: 384 real historical days ===
+  50/384 (20.7s elapsed)
+  100/384 (36.7s elapsed)
+  150/384 (62.2s elapsed)
+  200/384 (82.2s elapsed)
+  250/384 (100.4s elapsed)
+  300/384 (122.1s elapsed)
+  350/384 (147.9s elapsed)
+  384/384 (171.9s elapsed)
+  Done in 171.9s
+
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\real_orders_results.json
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\real_orders_results.csv
+
+--- v3 solve-mode distribution (384 days) ---
+  strict_tight          162  (42.2%)
+  single_meal_kcal_only  110  (28.6%)
+  strict_relaxed_tol     58  (15.1%)
+  best_effort_lp         47  (12.2%)
+  relaxed_culinary        7  (1.8%)
+  Culinary-cap breaches: 15/384
+
+--- v4 solve-mode distribution (384 days) ---
+  strict_tight          178  (46.4%)
+  single_meal_kcal_only  109  (28.4%)
+  best_effort_lp         51  (13.3%)
+  strict_relaxed_tol     41  (10.7%)
+  relaxed_culinary        4  (1.0%)
+  safe_fallback           1  (0.3%)
+  Culinary-cap breaches: 14/384

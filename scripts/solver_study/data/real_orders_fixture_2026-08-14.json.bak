@@ -1,0 +1,1918 @@
+{
+  "source": "LIVE Supabase read, real recipe_subrecipe data for every recipe referenced by real_orders_days.json",
+  "recipe_names": {
+    "39": "Banana Oat Cake",
+    "74": "Chicken Fajita Pasta",
+    "31": "Kafta Veggie Roast Pita",
+    "77": "Creamy Shrimp Pasta",
+    "76": "Grilled Chicken with Sweet Potato & Broccoli",
+    "78": "Classic Popcorn",
+    "34": "Shawarma Meat Plate",
+    "19": "Scrambled Eggs",
+    "52": "Seasonal Fruit",
+    "79": "Shrimp Mango Poke Bowl",
+    "56": "Homestyle Beef Pasta",
+    "20": "Labne & Fresh Veggies",
+    "58": "Beef & Eggplant Tomato Stew",
+    "33": "Bulgur Mjadra with Green Salad",
+    "47": "Chicken Stir Fry",
+    "59": "Energy Bomb: Halawa, Dates & Nuts",
+    "40": "Feta Omelette",
+    "42": "Avocado & Egg Toast",
+    "61": "Za\u2019atar Labneh Sandwich",
+    "43": "Grilled Chicken, Quinoa & Vegetables",
+    "24": "Fresh Blueberries",
+    "57": "Kebbe Bel Sayniye",
+    "18": "Greek Yogurt Banana Mix",
+    "55": "Lasagne",
+    "44": "Tawouk Sandwish",
+    "54": "Spinach & Beef Rice Bowl",
+    "48": "Oven-Baked Salmon & Potatoes",
+    "62": "Peanut Butter Cookie",
+    "60": "Salade de Fruits",
+    "32": "Tawouk Hummus Feast",
+    "38": "Chicken Pesto Pasta",
+    "37": "Chicken Fredo",
+    "64": "Chia Pudding ",
+    "67": "Kafta with Potatoes in Tomato Sauce",
+    "68": "Chicken Fasolya in Tomato Sauce",
+    "69": "Lebanese Chicken & Boulgour",
+    "25": "Fresh Kiwi Cup",
+    "22": "Fresh Turkey Pita",
+    "30": "Roasted Chicken & Potatoes",
+    "70": "Oven-Grilled Meat with Vegetables",
+    "71": "Meat Burger Platter",
+    "49": "Habbet Remmene",
+    "50": "Siyadiye",
+    "66": "Overnight Peanut Butter Oats",
+    "41": "Greek Yogurt and Nuts",
+    "21": "Turkey & Cheese Club Sandwich",
+    "73": "Grilled Chicken and Vegetables Bowl",
+    "72": "Pesto Meat & Rice Bowl",
+    "65": "Ariche with Avocado & Nuts",
+    "75": "Chicken Fajita Rice Bowl",
+    "80": "Salmon with Sweet Potato &  Vegetables",
+    "63": "Grilled Halloumi & Turkey Sandwich",
+    "81": "Chili Con Carne",
+    "82": "Steak with Mashed Potatoes",
+    "83": "Potato Souffl\u00e9",
+    "84": "The Sportitian Cupcakes",
+    "46": "Chicken Mango Salad",
+    "45": "Chicken Caesar Salad",
+    "91": "Dates & Peanut Butter",
+    "89": "Shawarma Chicken Bowl",
+    "90": "Chicken Fajita Wrap"
+  },
+  "subs_by_recipe": {
+    "18": [
+      {
+        "id": 25,
+        "name": "Banana",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.4,
+          "protein": 1.3,
+          "carbs": 23.9,
+          "fat": 0.4
+        }
+      },
+      {
+        "id": 26,
+        "name": "Honey",
+        "is_main": true,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 33.0,
+          "protein": 0.03,
+          "carbs": 8.22,
+          "fat": 0.0
+        }
+      },
+      {
+        "id": 24,
+        "name": "Greek Yogurt (Plain)",
+        "is_main": true,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 127.6,
+          "protein": 15.0,
+          "carbs": 7.0,
+          "fat": 4.4
+        }
+      }
+    ],
+    "19": [
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 28,
+        "name": "Scrambled Eggs",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 93.62,
+          "protein": 9.26,
+          "carbs": 2.06,
+          "fat": 5.38
+        }
+      }
+    ],
+    "20": [
+      {
+        "id": 31,
+        "name": "Vegetable Platter",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 25.4,
+          "protein": 1.15,
+          "carbs": 4.75,
+          "fat": 0.2
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 30,
+        "name": "Labne",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 57.9,
+          "protein": 9.7,
+          "carbs": 4.1,
+          "fat": 0.3
+        }
+      }
+    ],
+    "21": [
+      {
+        "id": 34,
+        "name": "Pain Demi",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 237.6,
+          "protein": 6.4,
+          "carbs": 44.0,
+          "fat": 4.0
+        }
+      },
+      {
+        "id": 32,
+        "name": "Turkey",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 20.8,
+          "protein": 4.4,
+          "carbs": 0.26,
+          "fat": 0.24
+        }
+      },
+      {
+        "id": 33,
+        "name": "Kashkaval Cheese",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 71.2,
+          "protein": 4.8,
+          "carbs": 0.4,
+          "fat": 5.6
+        }
+      }
+    ],
+    "22": [
+      {
+        "id": 31,
+        "name": "Vegetable Platter",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 25.4,
+          "protein": 1.15,
+          "carbs": 4.75,
+          "fat": 0.2
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 32,
+        "name": "Turkey",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 20.8,
+          "protein": 4.4,
+          "carbs": 0.26,
+          "fat": 0.24
+        }
+      }
+    ],
+    "24": [
+      {
+        "id": 36,
+        "name": "Blueberry",
+        "is_main": false,
+        "max_serving": 10,
+        "macros": {
+          "kcal": 26.95,
+          "protein": 0.35,
+          "carbs": 6.05,
+          "fat": 0.15
+        }
+      }
+    ],
+    "25": [
+      {
+        "id": 37,
+        "name": "Kiwi",
+        "is_main": false,
+        "max_serving": 5,
+        "macros": {
+          "kcal": 39.1,
+          "protein": 0.8,
+          "carbs": 8.3,
+          "fat": 0.3
+        }
+      }
+    ],
+    "30": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 42,
+        "name": "Oven Chicken Potatoes",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 266.2,
+          "protein": 35.93,
+          "carbs": 16.45,
+          "fat": 6.3
+        }
+      }
+    ],
+    "31": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 43,
+        "name": "Kafta Oven",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 310.4,
+          "protein": 33.22,
+          "carbs": 21.61,
+          "fat": 10.12
+        }
+      }
+    ],
+    "32": [
+      {
+        "id": 54,
+        "name": "Pickles",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 4.0,
+          "protein": 0.2,
+          "carbs": 0.8,
+          "fat": 0.0
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 45,
+        "name": "Hummus",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 42.39,
+          "protein": 1.57,
+          "carbs": 3.92,
+          "fat": 2.27
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 46,
+        "name": "Tawouk",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 216.92,
+          "protein": 34.32,
+          "carbs": 5.29,
+          "fat": 6.5
+        }
+      }
+    ],
+    "33": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 47,
+        "name": "Mjadara",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 261.28,
+          "protein": 16.6,
+          "carbs": 42.7,
+          "fat": 2.68
+        }
+      }
+    ],
+    "34": [
+      {
+        "id": 54,
+        "name": "Pickles",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 4.0,
+          "protein": 0.2,
+          "carbs": 0.8,
+          "fat": 0.0
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 48,
+        "name": "Tarator Sauce",
+        "is_main": false,
+        "max_serving": 5,
+        "macros": {
+          "kcal": 69.05,
+          "protein": 2.88,
+          "carbs": 2.35,
+          "fat": 5.35
+        }
+      },
+      {
+        "id": 49,
+        "name": "Shawarma Meat",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 208.65,
+          "protein": 30.3,
+          "carbs": 2.4,
+          "fat": 8.65
+        }
+      }
+    ],
+    "37": [
+      {
+        "id": 125,
+        "name": "Chicken For Pasta",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 133.65,
+          "protein": 22.5,
+          "carbs": 0.0,
+          "fat": 4.85
+        }
+      },
+      {
+        "id": 52,
+        "name": "Chicken Fredo (Pasta + Sauce)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 256.53,
+          "protein": 7.49,
+          "carbs": 38.53,
+          "fat": 8.05
+        }
+      }
+    ],
+    "38": [
+      {
+        "id": 125,
+        "name": "Chicken For Pasta",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 133.65,
+          "protein": 22.5,
+          "carbs": 0.0,
+          "fat": 4.85
+        }
+      },
+      {
+        "id": 53,
+        "name": "Pesto Pasta (Pasta + Sauce)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 295.43,
+          "protein": 7.99,
+          "carbs": 39.43,
+          "fat": 11.75
+        }
+      }
+    ],
+    "39": [
+      {
+        "id": 55,
+        "name": "Banana Oat Cake",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 209.68,
+          "protein": 5.5,
+          "carbs": 41.13,
+          "fat": 2.58
+        }
+      }
+    ],
+    "40": [
+      {
+        "id": 57,
+        "name": "Biscotte Toast",
+        "is_main": false,
+        "max_serving": 5,
+        "macros": {
+          "kcal": 31.8,
+          "protein": 1.0,
+          "carbs": 6.5,
+          "fat": 0.2
+        }
+      },
+      {
+        "id": 56,
+        "name": "Feta Omelette",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 109.85,
+          "protein": 10.42,
+          "carbs": 1.49,
+          "fat": 6.91
+        }
+      }
+    ],
+    "41": [
+      {
+        "id": 58,
+        "name": "Mixed Nuts",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 61.29,
+          "protein": 2.0,
+          "carbs": 1.33,
+          "fat": 5.33
+        }
+      },
+      {
+        "id": 26,
+        "name": "Honey",
+        "is_main": true,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 33.0,
+          "protein": 0.03,
+          "carbs": 8.22,
+          "fat": 0.0
+        }
+      },
+      {
+        "id": 24,
+        "name": "Greek Yogurt (Plain)",
+        "is_main": true,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 127.6,
+          "protein": 15.0,
+          "carbs": 7.0,
+          "fat": 4.4
+        }
+      }
+    ],
+    "42": [
+      {
+        "id": 59,
+        "name": "Avocado & Egg Toast",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 137.95,
+          "protein": 10.0,
+          "carbs": 2.25,
+          "fat": 9.89
+        }
+      },
+      {
+        "id": 34,
+        "name": "Pain Demi",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 237.6,
+          "protein": 6.4,
+          "carbs": 44.0,
+          "fat": 4.0
+        }
+      }
+    ],
+    "43": [
+      {
+        "id": 61,
+        "name": "Quinoa & Vegetables",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 204.6,
+          "protein": 8.45,
+          "carbs": 32.8,
+          "fat": 4.4
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 60,
+        "name": "Grilled Chicken Breast ",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 192.81,
+          "protein": 33.84,
+          "carbs": 0.48,
+          "fat": 6.17
+        }
+      }
+    ],
+    "44": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 63,
+        "name": "Tawouk Sandwish",
+        "is_main": true,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 422.01,
+          "protein": 26.16,
+          "carbs": 57.47,
+          "fat": 9.73
+        }
+      }
+    ],
+    "45": [
+      {
+        "id": 64,
+        "name": "Ceaser Sauce",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 70.55,
+          "protein": 4.32,
+          "carbs": 3.17,
+          "fat": 4.51
+        }
+      },
+      {
+        "id": 65,
+        "name": "Ceaser Chicken",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 229.25,
+          "protein": 34.97,
+          "carbs": 7.21,
+          "fat": 6.73
+        }
+      }
+    ],
+    "46": [
+      {
+        "id": 67,
+        "name": "Chicken Mango Salad Dressing",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 57.15,
+          "protein": 0.33,
+          "carbs": 8.22,
+          "fat": 2.55
+        }
+      },
+      {
+        "id": 66,
+        "name": "Chicken Mango Salad Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 308.88,
+          "protein": 37.67,
+          "carbs": 26.6,
+          "fat": 5.76
+        }
+      }
+    ],
+    "47": [
+      {
+        "id": 68,
+        "name": "Rice Chicken Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 72,
+        "name": "Chicken Stir Fry Main",
+        "is_main": true,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 237.4,
+          "protein": 36.48,
+          "carbs": 8.25,
+          "fat": 6.5
+        }
+      }
+    ],
+    "48": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 73,
+        "name": "Oven-Baked Salmon & Potatoes",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 253.2,
+          "protein": 24.11,
+          "carbs": 20.03,
+          "fat": 8.52
+        }
+      }
+    ],
+    "49": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 74,
+        "name": "Habbet Remmene",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 334.7,
+          "protein": 21.8,
+          "carbs": 52.65,
+          "fat": 4.1
+        }
+      }
+    ],
+    "50": [
+      {
+        "id": 70,
+        "name": "Rice Fish Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 48,
+        "name": "Tarator Sauce",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 69.05,
+          "protein": 2.88,
+          "carbs": 2.35,
+          "fat": 5.35
+        }
+      },
+      {
+        "id": 75,
+        "name": "Siyadiye Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 153.53,
+          "protein": 13.67,
+          "carbs": 0.94,
+          "fat": 10.57
+        }
+      }
+    ],
+    "52": [
+      {
+        "id": 77,
+        "name": "Seasonal Fruit",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 55.94,
+          "protein": 0.7,
+          "carbs": 12.7,
+          "fat": 0.26
+        }
+      }
+    ],
+    "54": [
+      {
+        "id": 69,
+        "name": "Rice Beef Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 79,
+        "name": "Spinach and Rice Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 221.83,
+          "protein": 33.0,
+          "carbs": 2.15,
+          "fat": 9.03
+        }
+      }
+    ],
+    "55": [
+      {
+        "id": 80,
+        "name": "Lasagne",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 256.95,
+          "protein": 16.92,
+          "carbs": 14.86,
+          "fat": 14.43
+        }
+      }
+    ],
+    "56": [
+      {
+        "id": 81,
+        "name": "Homestyle Beef Pasta (Pasta + Sauce)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 201.23,
+          "protein": 6.8,
+          "carbs": 39.18,
+          "fat": 1.93
+        }
+      },
+      {
+        "id": 126,
+        "name": "Meat for Pasta",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 156.98,
+          "protein": 20.35,
+          "carbs": 2.53,
+          "fat": 7.28
+        }
+      }
+    ],
+    "57": [
+      {
+        "id": 83,
+        "name": "Yogurt",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 62.7,
+          "protein": 3.2,
+          "carbs": 4.6,
+          "fat": 3.5
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 82,
+        "name": "Kebbe Bel Sayniye",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 233.76,
+          "protein": 20.01,
+          "carbs": 20.66,
+          "fat": 7.9
+        }
+      }
+    ],
+    "58": [
+      {
+        "id": 69,
+        "name": "Rice Beef Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 84,
+        "name": "Beef & Eggplant Tomato Stew Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 228.83,
+          "protein": 31.63,
+          "carbs": 5.95,
+          "fat": 8.73
+        }
+      }
+    ],
+    "59": [
+      {
+        "id": 85,
+        "name": "Halawa Date Mixed Nuts",
+        "is_main": false,
+        "max_serving": 10,
+        "macros": {
+          "kcal": 127.85,
+          "protein": 2.6,
+          "carbs": 17.07,
+          "fat": 5.47
+        }
+      }
+    ],
+    "60": [
+      {
+        "id": 86,
+        "name": "Salade De Fruit",
+        "is_main": false,
+        "max_serving": 10,
+        "macros": {
+          "kcal": 128.38,
+          "protein": 1.42,
+          "carbs": 29.51,
+          "fat": 0.52
+        }
+      }
+    ],
+    "61": [
+      {
+        "id": 88,
+        "name": "Cherry Tomato",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 13.35,
+          "protein": 0.5,
+          "carbs": 2.5,
+          "fat": 0.15
+        }
+      },
+      {
+        "id": 87,
+        "name": "Labne Zaatar Sandwish",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 291.34,
+          "protein": 12.63,
+          "carbs": 55.39,
+          "fat": 2.14
+        }
+      }
+    ],
+    "62": [
+      {
+        "id": 78,
+        "name": "Peanut Butter Cookie",
+        "is_main": false,
+        "max_serving": 10,
+        "macros": {
+          "kcal": 173.86,
+          "protein": 5.76,
+          "carbs": 20.39,
+          "fat": 7.7
+        }
+      }
+    ],
+    "63": [
+      {
+        "id": 34,
+        "name": "Pain Demi",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 237.6,
+          "protein": 6.4,
+          "carbs": 44.0,
+          "fat": 4.0
+        }
+      },
+      {
+        "id": 89,
+        "name": "Halloumi Sandwish (Halloumi + Turkey)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 185.47,
+          "protein": 17.16,
+          "carbs": 0.97,
+          "fat": 12.55
+        }
+      }
+    ],
+    "64": [
+      {
+        "id": 58,
+        "name": "Mixed Nuts",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 61.29,
+          "protein": 2.0,
+          "carbs": 1.33,
+          "fat": 5.33
+        }
+      },
+      {
+        "id": 90,
+        "name": "Chia Pudding",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 176.3,
+          "protein": 8.62,
+          "carbs": 13.41,
+          "fat": 9.8
+        }
+      }
+    ],
+    "65": [
+      {
+        "id": 92,
+        "name": "Avocado Nuts for Cottage Cheese",
+        "is_main": true,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 116.49,
+          "protein": 2.75,
+          "carbs": 2.01,
+          "fat": 10.83
+        }
+      },
+      {
+        "id": 26,
+        "name": "Honey",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 33.0,
+          "protein": 0.03,
+          "carbs": 8.22,
+          "fat": 0.0
+        }
+      },
+      {
+        "id": 91,
+        "name": "Ariche",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 146.8,
+          "protein": 9.0,
+          "carbs": 5.2,
+          "fat": 10.0
+        }
+      }
+    ],
+    "66": [
+      {
+        "id": 77,
+        "name": "Seasonal Fruit",
+        "is_main": false,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 55.94,
+          "protein": 0.7,
+          "carbs": 12.7,
+          "fat": 0.26
+        }
+      },
+      {
+        "id": 94,
+        "name": "Peanut Butter",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 59.6,
+          "protein": 2.8,
+          "carbs": 1.3,
+          "fat": 4.8
+        }
+      },
+      {
+        "id": 93,
+        "name": "Oat Base For Overnight Oat",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 212.39,
+          "protein": 11.42,
+          "carbs": 27.82,
+          "fat": 6.16
+        }
+      }
+    ],
+    "67": [
+      {
+        "id": 69,
+        "name": "Rice Beef Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 95,
+        "name": "Kafta Sauce Rouge for Kafta w Batata",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 267.66,
+          "protein": 32.3,
+          "carbs": 13.51,
+          "fat": 9.38
+        }
+      }
+    ],
+    "68": [
+      {
+        "id": 68,
+        "name": "Rice Chicken Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 96,
+        "name": "Fasolya Chicken for Fasolya Chicken and Rice",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 256.69,
+          "protein": 37.68,
+          "carbs": 9.46,
+          "fat": 7.57
+        }
+      }
+    ],
+    "69": [
+      {
+        "id": 83,
+        "name": "Yogurt",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 62.7,
+          "protein": 3.2,
+          "carbs": 4.6,
+          "fat": 3.5
+        }
+      },
+      {
+        "id": 97,
+        "name": "Chicken Boulgour",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 295.3,
+          "protein": 39.85,
+          "carbs": 21.6,
+          "fat": 5.5
+        }
+      }
+    ],
+    "70": [
+      {
+        "id": 45,
+        "name": "Hummus",
+        "is_main": false,
+        "max_serving": null,
+        "macros": {
+          "kcal": 42.39,
+          "protein": 1.57,
+          "carbs": 3.92,
+          "fat": 2.27
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 29,
+        "name": "Pita Bread",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 104.7,
+          "protein": 3.35,
+          "carbs": 21.7,
+          "fat": 0.5
+        }
+      },
+      {
+        "id": 98,
+        "name": "Grilled Meat for Grilled Meat Oven",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 278.05,
+          "protein": 32.8,
+          "carbs": 8.7,
+          "fat": 12.45
+        }
+      }
+    ],
+    "71": [
+      {
+        "id": 100,
+        "name": "Grilled Vegetables an Potatoes",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 159.85,
+          "protein": 4.8,
+          "carbs": 23.8,
+          "fat": 5.05
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 99,
+        "name": "Burger Meat",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 198.83,
+          "protein": 30.0,
+          "carbs": 0.3,
+          "fat": 8.63
+        }
+      }
+    ],
+    "72": [
+      {
+        "id": 69,
+        "name": "Rice Beef Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 101,
+        "name": "Pesto Meat Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 311.47,
+          "protein": 32.5,
+          "carbs": 4.67,
+          "fat": 18.09
+        }
+      }
+    ],
+    "73": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 68,
+        "name": "Rice Chicken Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 102,
+        "name": "Grilled Chicken Breast and Vegetables",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 259.45,
+          "protein": 36.55,
+          "carbs": 8.4,
+          "fat": 8.85
+        }
+      }
+    ],
+    "74": [
+      {
+        "id": 103,
+        "name": "Fajita Pasta (Pasta + Sauce)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 302.85,
+          "protein": 8.5,
+          "carbs": 46.18,
+          "fat": 9.35
+        }
+      },
+      {
+        "id": 125,
+        "name": "Chicken For Pasta",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 133.65,
+          "protein": 22.5,
+          "carbs": 0.0,
+          "fat": 4.85
+        }
+      }
+    ],
+    "75": [
+      {
+        "id": 68,
+        "name": "Rice Chicken Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 104,
+        "name": "Chicken Fajita Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 237.25,
+          "protein": 35.1,
+          "carbs": 9.93,
+          "fat": 6.35
+        }
+      }
+    ],
+    "76": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 60,
+        "name": "Grilled Chicken Breast ",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 192.81,
+          "protein": 33.84,
+          "carbs": 0.48,
+          "fat": 6.17
+        }
+      },
+      {
+        "id": 105,
+        "name": "Sweet Potato Broccoli in oven",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 153.35,
+          "protein": 5.0,
+          "carbs": 26.25,
+          "fat": 3.15
+        }
+      }
+    ],
+    "77": [
+      {
+        "id": 106,
+        "name": "Shrimp Pasta (Pasta + Sauce)",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 277.8,
+          "protein": 7.85,
+          "carbs": 40.9,
+          "fat": 9.2
+        }
+      },
+      {
+        "id": 127,
+        "name": "Shrimp for Pasta",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 136.45,
+          "protein": 23.35,
+          "carbs": 4.13,
+          "fat": 2.95
+        }
+      }
+    ],
+    "78": [
+      {
+        "id": 107,
+        "name": "Popcorn",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 129.51,
+          "protein": 3.75,
+          "carbs": 17.22,
+          "fat": 5.07
+        }
+      }
+    ],
+    "79": [
+      {
+        "id": 70,
+        "name": "Rice Fish Broth",
+        "is_main": true,
+        "max_serving": 2,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 108,
+        "name": "Shrimp Poke Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 341.31,
+          "protein": 49.07,
+          "carbs": 17.34,
+          "fat": 8.41
+        }
+      }
+    ],
+    "80": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 109,
+        "name": "Salmon Sweet Potato Vegetables",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 339.55,
+          "protein": 26.1,
+          "carbs": 32.8,
+          "fat": 11.55
+        }
+      }
+    ],
+    "81": [
+      {
+        "id": 69,
+        "name": "Rice Beef Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 110,
+        "name": "Chili Con Carne Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 346.57,
+          "protein": 36.92,
+          "carbs": 24.6,
+          "fat": 11.17
+        }
+      }
+    ],
+    "82": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 112,
+        "name": "Pur\u00e9e Pomme de Terre",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 83.2,
+          "protein": 1.85,
+          "carbs": 18.5,
+          "fat": 0.2
+        }
+      },
+      {
+        "id": 111,
+        "name": "Biftek Patete Pur\u00e9e ",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 254.7,
+          "protein": 32.25,
+          "carbs": 8.7,
+          "fat": 10.1
+        }
+      }
+    ],
+    "83": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 113,
+        "name": "Souffl\u00e9",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 327.09,
+          "protein": 24.86,
+          "carbs": 32.82,
+          "fat": 10.71
+        }
+      }
+    ],
+    "84": [
+      {
+        "id": 114,
+        "name": "The sportitian Cupcakes",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 60.4,
+          "protein": 6.0,
+          "carbs": 4.6,
+          "fat": 2.0
+        }
+      }
+    ],
+    "89": [
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 122,
+        "name": "Shawarma Chicken",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 191.15,
+          "protein": 33.8,
+          "carbs": 0.15,
+          "fat": 6.15
+        }
+      },
+      {
+        "id": 68,
+        "name": "Rice Chicken Broth",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 87.98,
+          "protein": 1.68,
+          "carbs": 19.7,
+          "fat": 0.28
+        }
+      },
+      {
+        "id": 118,
+        "name": "Avocado Garlic Sauce",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 29.86,
+          "protein": 0.68,
+          "carbs": 1.03,
+          "fat": 2.56
+        }
+      }
+    ],
+    "90": [
+      {
+        "id": 119,
+        "name": "Tortilla Wrap",
+        "is_main": false,
+        "max_serving": 3,
+        "macros": {
+          "kcal": 140.05,
+          "protein": 3.6,
+          "carbs": 23.95,
+          "fat": 3.35
+        }
+      },
+      {
+        "id": 123,
+        "name": "Yogurt Herbs Dressing",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 25.52,
+          "protein": 3.0,
+          "carbs": 1.4,
+          "fat": 0.88
+        }
+      },
+      {
+        "id": 44,
+        "name": "Akli House Salad",
+        "is_main": false,
+        "max_serving": 1,
+        "macros": {
+          "kcal": 85.45,
+          "protein": 2.32,
+          "carbs": 12.02,
+          "fat": 3.12
+        }
+      },
+      {
+        "id": 104,
+        "name": "Chicken Fajita Main",
+        "is_main": true,
+        "max_serving": null,
+        "macros": {
+          "kcal": 237.25,
+          "protein": 35.1,
+          "carbs": 9.93,
+          "fat": 6.35
+        }
+      }
+    ],
+    "91": [
+      {
+        "id": 120,
+        "name": "Date and Peanut Butter",
+        "is_main": false,
+        "max_serving": 10,
+        "macros": {
+          "kcal": 104.4,
+          "protein": 3.2,
+          "carbs": 12.1,
+          "fat": 4.8
+        }
+      }
+    ]
+  }
+}

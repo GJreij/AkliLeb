@@ -1,0 +1,529 @@
+version,diet_id,diet_label,diet_group,combo,target_kcal,target_protein_g,target_carbs_g,target_fat_g,actual_kcal,actual_protein_g,actual_carbs_g,actual_fat_g,dev_kcal_pct,dev_protein_pct,dev_carbs_pct,dev_fat_pct,solve_mode,tolerance_tier,culinary_pass,serving_step,wall_time_ms,lp_attempts,root_cause_category,root_cause_detail,culinary_cap_adherent,max_subrecipe_kcal_share_pct,max_subrecipe_servings
+v1,person_1,Person 1,real,full_day,2000.0,175.0,200.0,56.0,1990,157,200,62,-0.5,-10.3,0.0,10.7,strict_tight,0.08,strict,0.5,297.76,2,,,True,26.2,5.0
+v1,person_1,Person 1,real,lunch_snack_dinner,2000.0,175.0,200.0,56.0,2026,149,210,66,1.3,-14.9,5.0,17.9,strict_relaxed_tol,0.15,strict,0.5,778.57,6,,,True,36.0,6.5
+v1,person_1,Person 1,real,lunch_dinner,2000.0,175.0,200.0,56.0,2004,153,200,66,0.2,-12.6,0.0,17.9,strict_relaxed_tol,0.1,strict,0.5,554.17,4,,,True,36.4,6.5
+v1,person_1,Person 1,real,lunch_only,2000.0,175.0,200.0,56.0,2039,184,201,56,1.9,5.1,0.5,0.0,single_meal_kcal_only,0.08,strict,1.0,104.23,1,,,True,51.2,8.0
+v1,person_1,Person 1,real,dinner_only,2000.0,175.0,200.0,56.0,1868,102,197,74,-6.6,-41.7,-1.5,32.1,single_meal_kcal_only,0.08,strict,1.0,101.31,1,,,True,49.3,9.0
+v1,person_1,Person 1,real,lunch_snack,2000.0,175.0,200.0,56.0,1980,158,195,63,-1.0,-9.7,-2.5,12.5,strict_tight,0.08,strict,0.5,257.75,2,,,True,42.2,6.0
+v1,person_2,Person 2,real,full_day,1350.0,101.0,135.0,45.0,1341,100,134,45,-0.7,-1.0,-0.7,0.0,strict_tight,0.08,strict,0.5,368.36,2,,,True,28.5,3.0
+v1,person_2,Person 2,real,lunch_snack_dinner,1350.0,101.0,135.0,45.0,1335,94,138,45,-1.1,-6.9,2.2,0.0,strict_tight,0.08,strict,0.5,298.55,2,,,True,31.2,3.5
+v1,person_2,Person 2,real,lunch_dinner,1350.0,101.0,135.0,45.0,1340,95,136,46,-0.7,-5.9,0.7,2.2,strict_tight,0.08,strict,1.0,107.56,1,,,True,31.1,4.0
+v1,person_2,Person 2,real,lunch_only,1350.0,101.0,135.0,45.0,1306,91,136,44,-3.3,-9.9,0.7,-2.2,single_meal_kcal_only,0.08,strict,1.0,117.99,1,,,True,40.1,5.0
+v1,person_2,Person 2,real,dinner_only,1350.0,101.0,135.0,45.0,1296,70,136,52,-4.0,-30.7,0.7,15.6,single_meal_kcal_only,0.08,strict,1.0,84.28,1,,,True,47.4,6.0
+v1,person_2,Person 2,real,lunch_snack,1350.0,101.0,135.0,45.0,1350,90,141,47,0.0,-10.9,4.4,4.4,strict_tight,0.08,strict,1.0,167.49,1,,,True,31.0,4.0
+v1,person_3,Person 3,real,full_day,1800.0,135.0,180.0,60.0,1839,131,179,66,2.2,-3.0,-0.6,10.0,strict_tight,0.08,strict,1.0,116.0,1,,,True,22.7,3.0
+v1,person_3,Person 3,real,lunch_snack_dinner,1800.0,135.0,180.0,60.0,1786,128,182,61,-0.8,-5.2,1.1,1.7,strict_tight,0.08,strict,0.5,474.94,2,,,True,29.2,4.5
+v1,person_3,Person 3,real,lunch_dinner,1800.0,135.0,180.0,60.0,1841,119,192,66,2.3,-11.9,6.7,10.0,strict_tight,0.08,strict,1.0,261.13,1,,,True,23.9,5.0
+v1,person_3,Person 3,real,lunch_only,1800.0,135.0,180.0,60.0,1802,132,180,62,0.1,-2.2,0.0,3.3,single_meal_kcal_only,0.08,strict,1.0,205.13,1,,,True,34.9,8.0
+v1,person_3,Person 3,real,dinner_only,1800.0,135.0,180.0,60.0,1695,90,179,69,-5.8,-33.3,-0.6,15.0,single_meal_kcal_only,0.08,strict,1.0,142.9,1,,,True,45.3,8.0
+v1,person_3,Person 3,real,lunch_snack,1800.0,135.0,180.0,60.0,1761,127,180,59,-2.2,-5.9,0.0,-1.7,strict_tight,0.08,strict,1.0,196.25,1,,,True,35.5,5.0
+v1,person_4,Person 4,real,full_day,1140.0,95.0,100.0,40.0,1164,95,102,42,2.1,0.0,2.0,5.0,strict_tight,0.08,strict,0.5,267.37,2,,,True,32.9,3.0
+v1,person_4,Person 4,real,lunch_snack_dinner,1140.0,95.0,100.0,40.0,1130,82,98,45,-0.9,-13.7,-2.0,12.5,strict_relaxed_tol,0.1,strict,0.5,585.51,4,,,True,27.7,2.5
+v1,person_4,Person 4,real,lunch_dinner,1140.0,95.0,100.0,40.0,1174,91,105,43,3.0,-4.2,5.0,7.5,strict_tight,0.08,strict,0.5,275.36,2,,,True,35.5,2.5
+v1,person_4,Person 4,real,lunch_only,1140.0,95.0,100.0,40.0,1113,84,102,41,-2.4,-11.6,2.0,2.5,single_meal_kcal_only,0.08,strict,1.0,148.5,1,,,True,37.5,3.0
+v1,person_4,Person 4,real,dinner_only,1140.0,95.0,100.0,40.0,1050,56,100,47,-7.9,-41.1,0.0,17.5,single_meal_kcal_only,0.08,strict,1.0,118.24,1,,,True,43.9,3.0
+v1,person_4,Person 4,real,lunch_snack,1140.0,95.0,100.0,40.0,1136,95,99,40,-0.4,0.0,-1.0,0.0,strict_tight,0.08,strict,0.5,285.58,2,,,True,45.9,3.5
+v1,person_5,Person 5,real,full_day,1400.0,105.0,140.0,46.7,1402,104,141,47,0.1,-1.0,0.7,0.6,strict_tight,0.08,strict,0.5,384.17,2,,,True,31.9,3.5
+v1,person_5,Person 5,real,lunch_snack_dinner,1400.0,105.0,140.0,46.7,1384,96,134,52,-1.1,-8.6,-4.3,11.3,strict_tight,0.08,strict,1.0,110.9,1,,,True,30.1,3.0
+v1,person_5,Person 5,real,lunch_dinner,1400.0,105.0,140.0,46.7,1361,97,139,47,-2.8,-7.6,-0.7,0.6,strict_tight,0.08,strict,1.0,83.71,1,,,True,30.7,3.0
+v1,person_5,Person 5,real,lunch_only,1400.0,105.0,140.0,46.7,1460,117,140,48,4.3,11.4,0.0,2.8,single_meal_kcal_only,0.08,strict,1.0,136.88,1,,,True,42.9,6.0
+v1,person_5,Person 5,real,dinner_only,1400.0,105.0,140.0,46.7,1296,70,136,52,-7.4,-33.3,-2.9,11.3,single_meal_kcal_only,0.08,strict,1.0,70.9,1,,,True,47.4,6.0
+v1,person_5,Person 5,real,lunch_snack,1400.0,105.0,140.0,46.7,1490,118,141,50,6.4,12.4,0.7,7.1,strict_tight,0.08,strict,1.0,160.74,1,,,True,42.0,4.0
+v1,person_6,Person 6,real,full_day,1600.0,120.0,160.0,53.3,1602,119,160,54,0.1,-0.8,0.0,1.3,strict_tight,0.08,strict,0.5,464.32,2,,,True,31.9,4.0
+v1,person_6,Person 6,real,lunch_snack_dinner,1600.0,120.0,160.0,53.3,1613,119,160,55,0.8,-0.8,0.0,3.2,strict_tight,0.08,strict,0.5,415.27,2,,,True,32.3,4.0
+v1,person_6,Person 6,real,lunch_dinner,1600.0,120.0,160.0,53.3,1603,112,159,58,0.2,-6.7,-0.6,8.8,strict_tight,0.08,strict,1.0,159.18,1,,,True,26.0,4.0
+v1,person_6,Person 6,real,lunch_only,1600.0,120.0,160.0,53.3,1611,120,160,55,0.7,0.0,0.0,3.2,single_meal_kcal_only,0.08,strict,1.0,134.94,1,,,True,38.8,7.0
+v1,person_6,Person 6,real,dinner_only,1600.0,120.0,160.0,53.3,1538,85,157,63,-3.9,-29.2,-1.9,18.2,single_meal_kcal_only,0.08,strict,1.0,107.15,1,,,True,49.9,7.0
+v1,person_6,Person 6,real,lunch_snack,1600.0,120.0,160.0,53.3,1587,121,156,53,-0.8,0.8,-2.5,-0.6,strict_tight,0.08,strict,1.0,198.85,1,,,True,39.4,5.0
+v1,person_7,Person 7,real,full_day,1700.0,127.5,170.0,56.7,1707,116,171,62,0.4,-9.0,0.6,9.3,strict_tight,0.08,strict,1.0,194.4,1,,,True,24.4,3.0
+v1,person_7,Person 7,real,lunch_snack_dinner,1700.0,127.5,170.0,56.7,1710,113,173,63,0.6,-11.4,1.8,11.1,strict_tight,0.08,strict,1.0,216.46,1,,,True,25.7,5.0
+v1,person_7,Person 7,real,lunch_dinner,1700.0,127.5,170.0,56.7,1687,114,178,58,-0.8,-10.6,4.7,2.3,strict_tight,0.08,strict,1.0,225.42,1,,,True,26.1,5.0
+v1,person_7,Person 7,real,lunch_only,1700.0,127.5,170.0,56.7,1705,127,172,57,0.3,-0.4,1.2,0.5,single_meal_kcal_only,0.08,strict,1.0,188.58,1,,,True,36.8,6.0
+v1,person_7,Person 7,real,dinner_only,1700.0,127.5,170.0,56.7,1626,87,177,64,-4.4,-31.8,4.1,12.9,single_meal_kcal_only,0.08,strict,1.0,106.85,1,,,True,47.2,8.0
+v1,person_7,Person 7,real,lunch_snack,1700.0,127.5,170.0,56.7,1675,125,168,56,-1.5,-2.0,-1.2,-1.2,strict_tight,0.08,strict,1.0,133.53,1,,,True,37.4,5.0
+v1,person_8,Person 8,real,full_day,1400.0,70.0,175.0,46.7,1398,70,175,47,-0.1,0.0,0.0,0.6,strict_tight,0.08,strict,0.5,361.15,2,,,True,25.2,4.0
+v1,person_8,Person 8,real,lunch_snack_dinner,1400.0,70.0,175.0,46.7,1433,71,182,47,2.4,1.4,4.0,0.6,strict_tight,0.08,strict,1.0,137.35,1,,,True,30.7,5.0
+v1,person_8,Person 8,real,lunch_dinner,1400.0,70.0,175.0,46.7,1378,72,168,47,-1.6,2.9,-4.0,0.6,strict_tight,0.08,strict,1.0,135.34,1,,,True,31.9,5.0
+v1,person_8,Person 8,real,lunch_only,1400.0,70.0,175.0,46.7,1382,69,175,45,-1.3,-1.4,0.0,-3.6,single_meal_kcal_only,0.08,strict,1.0,101.24,1,,,True,37.9,8.0
+v1,person_8,Person 8,real,dinner_only,1400.0,70.0,175.0,46.7,1388,63,177,48,-0.9,-10.0,1.1,2.8,single_meal_kcal_only,0.08,strict,1.0,69.11,1,,,True,50.7,8.0
+v1,person_8,Person 8,real,lunch_snack,1400.0,70.0,175.0,46.7,1416,77,171,47,1.1,10.0,-2.3,0.6,strict_tight,0.08,strict,0.5,194.41,2,,,True,25.9,3.5
+v1,person_9,Person 9,real,full_day,1140.0,95.0,100.0,40.0,1164,95,102,42,2.1,0.0,2.0,5.0,strict_tight,0.08,strict,0.5,185.42,2,,,True,32.9,3.0
+v1,person_9,Person 9,real,lunch_snack_dinner,1140.0,95.0,100.0,40.0,1130,82,98,45,-0.9,-13.7,-2.0,12.5,strict_relaxed_tol,0.1,strict,0.5,426.08,4,,,True,27.7,2.5
+v1,person_9,Person 9,real,lunch_dinner,1140.0,95.0,100.0,40.0,1174,91,105,43,3.0,-4.2,5.0,7.5,strict_tight,0.08,strict,0.5,210.56,2,,,True,35.5,2.5
+v1,person_9,Person 9,real,lunch_only,1140.0,95.0,100.0,40.0,1113,84,102,41,-2.4,-11.6,2.0,2.5,single_meal_kcal_only,0.08,strict,1.0,104.24,1,,,True,37.5,3.0
+v1,person_9,Person 9,real,dinner_only,1140.0,95.0,100.0,40.0,1050,56,100,47,-7.9,-41.1,0.0,17.5,single_meal_kcal_only,0.08,strict,1.0,77.57,1,,,True,43.9,3.0
+v1,person_9,Person 9,real,lunch_snack,1140.0,95.0,100.0,40.0,1136,95,99,40,-0.4,0.0,-1.0,0.0,strict_tight,0.08,strict,0.5,192.45,2,,,True,45.9,3.5
+v1,person_10,Person 10,real,full_day,1200.0,90.0,120.0,40.0,1199,90,120,40,-0.1,0.0,0.0,0.0,strict_tight,0.08,strict,0.5,154.2,2,,,True,26.6,2.5
+v1,person_10,Person 10,real,lunch_snack_dinner,1200.0,90.0,120.0,40.0,1245,92,119,45,3.8,2.2,-0.8,12.5,strict_tight,0.08,strict,0.5,332.64,2,,,True,33.5,3.0
+v1,person_10,Person 10,real,lunch_dinner,1200.0,90.0,120.0,40.0,1184,86,120,40,-1.3,-4.4,0.0,0.0,strict_tight,0.08,strict,0.5,290.14,2,,,True,35.2,3.0
+v1,person_10,Person 10,real,lunch_only,1200.0,90.0,120.0,40.0,1218,87,123,42,1.5,-3.3,2.5,5.0,single_meal_kcal_only,0.08,strict,1.0,148.87,1,,,True,34.4,4.0
+v1,person_10,Person 10,real,dinner_only,1200.0,90.0,120.0,40.0,1143,56,135,42,-4.8,-37.8,12.5,5.0,single_meal_kcal_only,0.08,strict,1.0,103.5,1,,,True,46.2,6.0
+v1,person_10,Person 10,real,lunch_snack,1200.0,90.0,120.0,40.0,1188,85,120,41,-1.0,-5.6,0.0,2.5,strict_tight,0.08,strict,1.0,80.1,1,,,True,35.1,5.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,full_day,1000.0,72.0,76.8,45.0,999,72,77,45,-0.1,0.0,0.3,0.0,strict_tight,0.08,strict,0.5,267.99,2,,,True,25.5,2.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,lunch_snack_dinner,1000.0,72.0,76.8,45.0,1008,72,77,46,0.8,0.0,0.3,2.2,strict_tight,0.08,strict,0.5,360.51,2,,,True,30.5,2.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,lunch_dinner,1000.0,72.0,76.8,45.0,1025,73,76,48,2.5,1.4,-1.0,6.7,strict_tight,0.08,strict,1.0,100.88,1,,,True,29.9,2.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,lunch_only,1000.0,72.0,76.8,45.0,1018,81,76,43,1.8,12.5,-1.0,-4.4,single_meal_kcal_only,0.08,strict,1.0,220.56,1,,,True,41.0,8.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,dinner_only,1000.0,72.0,76.8,45.0,1033,65,77,52,3.3,-9.7,0.3,15.6,single_meal_kcal_only,0.08,strict,1.0,104.52,1,,,True,59.5,4.0
+v1,synth_1000_balanced,1000kcal / balanced,synthetic,lunch_snack,1000.0,72.0,76.8,45.0,1019,79,77,44,1.9,9.7,0.3,-2.2,strict_tight,0.08,strict,0.5,298.15,2,,,True,41.0,2.5
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,full_day,1000.0,49.5,99.2,45.0,994,49,100,44,-0.6,-1.0,0.8,-2.2,strict_tight,0.08,strict,0.5,484.95,2,,,True,19.3,2.0
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,lunch_snack_dinner,1000.0,49.5,99.2,45.0,995,50,100,44,-0.5,1.0,0.8,-2.2,strict_tight,0.08,strict,0.5,312.17,2,,,True,19.3,2.0
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,lunch_dinner,1000.0,49.5,99.2,45.0,1000,58,100,41,0.0,17.2,0.8,-8.9,strict_tight,0.08,strict,0.5,349.16,2,,,True,42.7,5.0
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,lunch_only,1000.0,49.5,99.2,45.0,1045,58,99,46,4.5,17.2,-0.2,2.2,single_meal_kcal_only,0.08,strict,1.0,95.46,1,,,True,40.9,7.0
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,dinner_only,1000.0,49.5,99.2,45.0,1021,48,102,47,2.1,-3.0,2.8,4.4,single_meal_kcal_only,0.08,strict,1.0,104.94,1,,,True,34.5,4.0
+v1,synth_1000_low_protein,1000kcal / low protein,synthetic,lunch_snack,1000.0,49.5,99.2,45.0,1000,54,108,39,0.0,9.1,8.9,-13.3,strict_relaxed_tol,0.15,strict,0.5,568.29,6,,,True,21.4,2.5
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,full_day,1000.0,27.0,121.8,45.0,1218,79,108,52,21.8,192.6,-11.3,15.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1188.51,17,,,True,17.1,1.0
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,lunch_snack_dinner,1000.0,27.0,121.8,45.0,1006,43,123,38,0.6,59.3,1.0,-15.6,relaxed_culinary,0.2,relaxed,0.5,1113.15,16,,,True,31.8,2.5
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,lunch_dinner,1000.0,27.0,121.8,45.0,1127,66,118,43,12.7,144.4,-3.1,-4.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1234.0,17,,,True,22.8,3.0
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,lunch_only,1000.0,27.0,121.8,45.0,1070,55,123,39,7.0,103.7,1.0,-13.3,single_meal_kcal_only,0.08,strict,1.0,68.06,1,,,True,63.9,8.0
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,dinner_only,1000.0,27.0,121.8,45.0,994,37,119,41,-0.6,37.0,-2.3,-8.9,single_meal_kcal_only,0.08,strict,1.0,77.27,1,,,True,68.8,8.0
+v1,synth_1000_extremely_low_protein,1000kcal / extremely low protein,synthetic,lunch_snack,1000.0,27.0,121.8,45.0,1115,55,127,43,11.5,103.7,4.3,-4.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1122.75,17,,,True,34.4,3.0
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,full_day,1000.0,90.0,58.8,45.0,994,83,63,45,-0.6,-7.8,7.1,0.0,strict_tight,0.08,strict,0.5,134.42,2,,,True,23.2,1.5
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,lunch_snack_dinner,1000.0,90.0,58.8,45.0,996,77,61,50,-0.4,-14.4,3.7,11.1,strict_relaxed_tol,0.15,strict,0.5,635.93,6,,,True,38.5,2.5
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,lunch_dinner,1000.0,90.0,58.8,45.0,1004,85,59,47,0.4,-5.6,0.3,4.4,strict_tight,0.08,strict,0.5,254.92,2,,,True,31.2,2.0
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,lunch_only,1000.0,90.0,58.8,45.0,973,80,61,45,-2.7,-11.1,3.7,0.0,single_meal_kcal_only,0.08,strict,1.0,100.82,1,,,True,42.9,4.0
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,dinner_only,1000.0,90.0,58.8,45.0,945,63,58,51,-5.5,-30.0,-1.4,13.3,single_meal_kcal_only,0.08,strict,1.0,67.77,1,,,True,65.0,4.0
+v1,synth_1000_high_protein,1000kcal / high protein,synthetic,lunch_snack,1000.0,90.0,58.8,45.0,995,91,61,43,-0.5,1.1,3.7,-4.4,strict_tight,0.08,strict,0.5,139.47,2,,,True,52.4,2.5
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,full_day,1000.0,115.9,33.8,44.6,1218,79,108,52,21.8,-31.8,219.5,16.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1133.77,17,,,True,17.1,1.0
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,lunch_snack_dinner,1000.0,115.9,33.8,44.6,996,62,91,42,-0.4,-46.5,169.2,-5.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1157.65,17,,,True,21.0,1.0
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,lunch_dinner,1000.0,115.9,33.8,44.6,1021,73,75,48,2.1,-37.0,121.9,7.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1198.09,17,,,True,30.1,2.0
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,lunch_only,1000.0,115.9,33.8,44.6,1027,105,49,46,2.7,-9.4,45.0,3.1,single_meal_kcal_only,0.08,strict,1.0,72.17,1,,,True,60.9,3.0
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,dinner_only,1000.0,115.9,33.8,44.6,1010,75,39,62,1.0,-35.3,15.4,39.0,single_meal_kcal_only,0.08,strict,1.0,66.98,1,,,True,76.0,5.0
+v1,synth_1000_extremely_high_protein,1000kcal / extremely high protein,synthetic,lunch_snack,1000.0,115.9,33.8,44.6,877,75,61,37,-12.3,-35.3,80.5,-17.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1119.86,17,,,True,47.6,2.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,full_day,1000.0,72.0,127.4,22.5,1306,81,128,52,30.6,12.5,0.5,131.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1133.85,17,,,True,16.0,2.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,lunch_snack_dinner,1000.0,72.0,127.4,22.5,1172,66,131,43,17.2,-8.3,2.8,91.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1151.49,17,,,True,22.5,3.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,lunch_dinner,1000.0,72.0,127.4,22.5,995,57,128,28,-0.5,-20.8,0.5,24.4,strict_relaxed_tol,0.2,strict,0.5,678.82,8,,,True,26.5,3.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,lunch_only,1000.0,72.0,127.4,22.5,976,55,138,23,-2.4,-23.6,8.3,2.2,single_meal_kcal_only,0.08,strict,1.0,103.59,1,,,True,53.6,5.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,dinner_only,1000.0,72.0,127.4,22.5,921,31,146,24,-7.9,-56.9,14.6,6.7,single_meal_kcal_only,0.08,strict,1.0,72.07,1,,,True,57.3,6.0
+v1,synth_1000_low_fat,1000kcal / low fat,synthetic,lunch_snack,1000.0,72.0,127.4,22.5,917,75,81,32,-8.3,4.2,-36.4,42.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1175.15,17,,,True,45.5,2.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,full_day,1000.0,72.0,152.7,11.2,1398,83,148,53,39.8,15.3,-3.1,373.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1244.16,17,,,True,18.9,3.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,lunch_snack_dinner,1000.0,72.0,152.7,11.2,1276,69,152,43,27.6,-4.2,-0.5,283.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1137.94,17,,,True,20.7,3.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,lunch_dinner,1000.0,72.0,152.7,11.2,1220,66,153,38,22.0,-8.3,0.2,239.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1297.78,17,,,True,36.1,5.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,lunch_only,1000.0,72.0,152.7,11.2,1019,57,153,20,1.9,-20.8,0.2,78.6,single_meal_kcal_only,0.08,strict,1.0,70.13,1,,,True,61.6,7.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,dinner_only,1000.0,72.0,152.7,11.2,924,31,153,21,-7.6,-56.9,0.2,87.5,single_meal_kcal_only,0.08,strict,1.0,66.16,1,,,True,66.7,7.0
+v1,synth_1000_extremely_low_fat,1000kcal / extremely low fat,synthetic,lunch_snack,1000.0,72.0,152.7,11.2,708,45,79,24,-29.2,-37.5,-48.3,114.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1109.66,17,,,True,29.6,2.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,full_day,1000.0,66.5,33.8,66.5,1218,79,108,52,21.8,18.8,219.5,-21.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1144.41,17,,,True,17.1,1.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,lunch_snack_dinner,1000.0,66.5,33.8,66.5,1065,65,94,48,6.5,-2.3,178.1,-27.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1146.68,17,,,True,19.6,2.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,lunch_dinner,1000.0,66.5,33.8,66.5,1021,73,75,48,2.1,9.8,121.9,-27.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1176.75,17,,,True,30.1,2.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,lunch_only,1000.0,66.5,33.8,66.5,1024,62,58,60,2.4,-6.8,71.6,-9.8,single_meal_kcal_only,0.08,strict,1.0,90.19,1,,,True,60.7,9.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,dinner_only,1000.0,66.5,33.8,66.5,995,67,43,62,-0.5,0.8,27.2,-6.8,single_meal_kcal_only,0.08,strict,1.0,76.42,1,,,True,61.7,4.0
+v1,synth_1000_high_fat,1000kcal / high fat,synthetic,lunch_snack,1000.0,66.5,33.8,66.5,808,72,59,32,-19.2,8.3,74.6,-51.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1166.72,17,,,True,51.6,2.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,full_day,1000.0,52.8,33.8,72.6,1218,79,108,52,21.8,49.6,219.5,-28.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1125.65,17,,,True,17.1,1.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,lunch_snack_dinner,1000.0,52.8,33.8,72.6,996,62,91,42,-0.4,17.4,169.2,-42.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1387.46,17,,,True,21.0,1.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,lunch_dinner,1000.0,52.8,33.8,72.6,868,60,74,37,-13.2,13.6,118.9,-49.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1356.44,17,,,True,24.0,1.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,lunch_only,1000.0,52.8,33.8,72.6,955,59,56,55,-4.5,11.7,65.7,-24.2,single_meal_kcal_only,0.08,strict,1.0,86.02,1,,,True,57.8,8.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,dinner_only,1000.0,52.8,33.8,72.6,979,59,46,62,-2.1,11.7,36.1,-14.6,single_meal_kcal_only,0.08,strict,1.0,92.64,1,,,True,47.0,5.0
+v1,synth_1000_extremely_high_fat,1000kcal / extremely high fat,synthetic,lunch_snack,1000.0,52.8,33.8,72.6,669,45,59,28,-33.1,-14.8,74.6,-61.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1418.23,17,,,True,31.2,2.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,full_day,1000.0,84.0,33.8,58.8,1279,81,109,57,27.9,-3.6,222.5,-3.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1554.25,17,,,True,16.3,2.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,lunch_snack_dinner,1000.0,84.0,33.8,58.8,1218,79,95,58,21.8,-6.0,181.1,-1.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1404.62,17,,,True,25.2,2.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,lunch_dinner,1000.0,84.0,33.8,58.8,999,82,48,53,-0.1,-2.4,42.0,-9.9,strict_relaxed_tol,0.2,strict,0.5,655.57,8,,,True,46.1,3.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,lunch_only,1000.0,84.0,33.8,58.8,1026,84,53,53,2.6,0.0,56.8,-9.9,single_meal_kcal_only,0.08,strict,1.0,105.77,1,,,True,40.7,6.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,dinner_only,1000.0,84.0,33.8,58.8,1010,75,39,62,1.0,-10.7,15.4,5.4,single_meal_kcal_only,0.08,strict,1.0,88.99,1,,,True,76.0,5.0
+v1,synth_1000_low_carbs,1000kcal / low carbs,synthetic,lunch_snack,1000.0,84.0,33.8,58.8,877,75,61,37,-12.3,-10.7,80.5,-37.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1444.78,17,,,True,47.6,2.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,full_day,1000.0,80.5,33.8,60.3,1279,81,109,57,27.9,0.6,222.5,-5.5,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1192.2,17,,,True,16.3,2.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,lunch_snack_dinner,1000.0,80.5,33.8,60.3,1218,79,95,58,21.8,-1.9,181.1,-3.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1051.95,17,,,True,25.2,2.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,lunch_dinner,1000.0,80.5,33.8,60.3,999,82,48,53,-0.1,1.9,42.0,-12.1,strict_relaxed_tol,0.2,strict,0.5,590.17,8,,,True,46.1,3.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,lunch_only,1000.0,80.5,33.8,60.3,957,81,51,48,-4.3,0.6,50.9,-20.4,single_meal_kcal_only,0.08,strict,1.0,83.93,1,,,True,43.6,5.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,dinner_only,1000.0,80.5,33.8,60.3,1010,75,39,62,1.0,-6.8,15.4,2.8,single_meal_kcal_only,0.08,strict,1.0,71.72,1,,,True,76.0,5.0
+v1,synth_1000_extremely_low_carbs,1000kcal / extremely low carbs,synthetic,lunch_snack,1000.0,80.5,33.8,60.3,877,75,61,37,-12.3,-6.8,80.5,-38.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1115.93,17,,,True,47.6,2.0
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,full_day,1000.0,54.0,135.2,27.0,1034,55,134,31,3.4,1.9,-0.9,14.8,strict_tight,0.08,strict,0.5,151.7,2,,,True,29.8,3.5
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,lunch_snack_dinner,1000.0,54.0,135.2,27.0,1008,55,137,27,0.8,1.9,1.3,0.0,strict_tight,0.08,strict,0.5,224.89,2,,,True,39.3,4.5
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,lunch_dinner,1000.0,54.0,135.2,27.0,986,55,131,27,-1.4,1.9,-3.1,0.0,strict_tight,0.08,strict,0.5,217.11,2,,,True,35.7,4.0
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,lunch_only,1000.0,54.0,135.2,27.0,985,55,134,25,-1.5,1.9,-0.9,-7.4,single_meal_kcal_only,0.08,strict,1.0,108.36,1,,,True,42.5,8.0
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,dinner_only,1000.0,54.0,135.2,27.0,989,43,134,31,-1.1,-20.4,-0.9,14.8,single_meal_kcal_only,0.08,strict,1.0,68.06,1,,,True,53.4,6.0
+v1,synth_1000_high_carbs,1000kcal / high carbs,synthetic,lunch_snack,1000.0,54.0,135.2,27.0,1053,68,121,33,5.3,25.9,-10.5,22.2,strict_relaxed_tol,0.2,strict,0.5,633.34,8,,,True,34.8,3.5
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,full_day,1000.0,40.5,174.1,15.7,1482,84,167,53,48.2,107.4,-4.1,237.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1159.0,17,,,True,23.8,4.0
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,lunch_snack_dinner,1000.0,40.5,174.1,15.7,1348,69,170,44,34.8,70.4,-2.4,180.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1282.5,17,,,True,32.6,5.0
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,lunch_dinner,1000.0,40.5,174.1,15.7,1220,66,153,38,22.0,63.0,-12.1,142.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1222.59,17,,,True,36.1,5.0
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,lunch_only,1000.0,40.5,174.1,15.7,999,56,149,20,-0.1,38.3,-14.4,27.4,single_meal_kcal_only,0.08,strict,1.0,64.23,1,,,True,62.9,6.0
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,dinner_only,1000.0,40.5,174.1,15.7,1012,32,173,21,1.2,-21.0,-0.6,33.8,single_meal_kcal_only,0.08,strict,1.0,75.21,1,,,True,69.6,8.0
+v1,synth_1000_extremely_high_carbs,1000kcal / extremely high carbs,synthetic,lunch_snack,1000.0,40.5,174.1,15.7,708,45,79,24,-29.2,11.1,-54.6,52.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1116.06,17,,,True,29.6,2.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,full_day,1500.0,96.0,144.0,60.0,1519,98,147,60,1.3,2.1,2.1,0.0,strict_tight,0.08,strict,1.0,164.05,1,,,True,16.8,2.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,lunch_snack_dinner,1500.0,96.0,144.0,60.0,1510,99,143,60,0.7,3.1,-0.7,0.0,strict_tight,0.08,strict,1.0,168.82,1,,,True,27.6,2.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,lunch_dinner,1500.0,96.0,144.0,60.0,1506,101,144,58,0.4,5.2,0.0,-3.3,strict_tight,0.08,strict,1.0,150.37,1,,,True,27.7,4.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,lunch_only,1500.0,96.0,144.0,60.0,1513,96,144,62,0.9,0.0,0.0,3.3,single_meal_kcal_only,0.08,strict,1.0,103.57,1,,,True,39.5,7.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,dinner_only,1500.0,96.0,144.0,60.0,1450,84,137,63,-3.3,-12.5,-4.9,5.0,single_meal_kcal_only,0.08,strict,1.0,86.49,1,,,True,52.9,6.0
+v1,synth_1500_balanced,1500kcal / balanced,synthetic,lunch_snack,1500.0,96.0,144.0,60.0,1481,96,139,60,-1.3,0.0,-3.5,0.0,strict_tight,0.08,strict,1.0,137.56,1,,,True,28.2,5.0
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,full_day,1500.0,66.0,174.0,60.0,1501,67,174,60,0.1,1.5,0.0,0.0,strict_tight,0.08,strict,0.5,260.38,2,,,True,21.3,2.5
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,lunch_snack_dinner,1500.0,66.0,174.0,60.0,1539,76,174,60,2.6,15.2,0.0,0.0,strict_tight,0.08,strict,1.0,118.08,1,,,True,17.1,3.0
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,lunch_dinner,1500.0,66.0,174.0,60.0,1557,79,178,59,3.8,19.7,2.3,-1.7,strict_tight,0.08,strict,1.0,124.0,1,,,True,27.4,5.0
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,lunch_only,1500.0,66.0,174.0,60.0,1481,67,174,57,-1.3,1.5,0.0,-5.0,single_meal_kcal_only,0.08,strict,1.0,83.17,1,,,True,69.2,12.0
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,dinner_only,1500.0,66.0,174.0,60.0,1480,67,168,60,-1.3,1.5,-3.4,0.0,single_meal_kcal_only,0.08,strict,1.0,94.94,1,,,True,40.4,7.0
+v1,synth_1500_low_protein,1500kcal / low protein,synthetic,lunch_snack,1500.0,66.0,174.0,60.0,1477,80,168,54,-1.5,21.2,-3.4,-10.0,strict_tight,0.08,strict,0.5,212.64,2,,,True,24.8,3.5
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,full_day,1500.0,36.0,204.0,60.0,1521,59,201,53,1.4,63.9,-1.5,-11.7,relaxed_culinary,0.2,relaxed,0.5,1066.82,16,,,True,33.6,4.0
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,lunch_snack_dinner,1500.0,36.0,204.0,60.0,1467,54,193,53,-2.2,50.0,-5.4,-11.7,relaxed_culinary,0.15,relaxed,0.5,947.46,14,,,True,34.9,4.0
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,lunch_dinner,1500.0,36.0,204.0,60.0,1635,79,204,56,9.0,119.4,0.0,-6.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1132.61,17,,,True,26.9,5.0
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,lunch_only,1500.0,36.0,204.0,60.0,1583,69,196,58,5.5,91.7,-3.9,-3.3,single_meal_kcal_only,0.08,strict,1.0,65.71,1,,,True,75.6,14.0
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,dinner_only,1500.0,36.0,204.0,60.0,1509,50,199,57,0.6,38.9,-2.5,-5.0,single_meal_kcal_only,0.08,strict,1.0,83.95,1,,,True,73.6,13.0
+v1,synth_1500_extremely_low_protein,1500kcal / extremely low protein,synthetic,lunch_snack,1500.0,36.0,204.0,60.0,1115,55,127,43,-25.7,52.8,-37.7,-28.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1129.76,17,,,True,34.4,3.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,full_day,1500.0,120.0,120.0,60.0,1473,109,122,61,-1.8,-9.2,1.7,1.7,strict_tight,0.08,strict,1.0,69.19,1,,,True,26.0,3.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,lunch_snack_dinner,1500.0,120.0,120.0,60.0,1450,108,115,62,-3.3,-10.0,-4.2,3.3,strict_tight,0.08,strict,1.0,139.01,1,,,True,28.8,2.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,lunch_dinner,1500.0,120.0,120.0,60.0,1492,111,121,62,-0.5,-7.5,0.8,3.3,strict_tight,0.08,strict,1.0,134.39,1,,,True,28.0,2.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,lunch_only,1500.0,120.0,120.0,60.0,1485,120,120,58,-1.0,0.0,0.0,-3.3,single_meal_kcal_only,0.08,strict,1.0,96.94,1,,,True,42.2,4.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,dinner_only,1500.0,120.0,120.0,60.0,1516,96,119,73,1.1,-20.0,-0.8,21.7,single_meal_kcal_only,0.08,strict,1.0,85.46,1,,,True,60.8,6.0
+v1,synth_1500_high_protein,1500kcal / high protein,synthetic,lunch_snack,1500.0,120.0,120.0,60.0,1489,117,120,60,-0.7,-2.5,0.0,0.0,strict_tight,0.08,strict,1.0,80.11,1,,,True,42.0,5.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,full_day,1500.0,156.0,84.0,60.0,1510,136,88,68,0.7,-12.8,4.8,13.3,strict_relaxed_tol,0.15,strict,0.5,596.1,6,,,True,33.8,4.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,lunch_snack_dinner,1500.0,156.0,84.0,60.0,1527,133,92,70,1.8,-14.7,9.5,16.7,strict_relaxed_tol,0.2,strict,0.5,616.24,8,,,True,34.2,3.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,lunch_dinner,1500.0,156.0,84.0,60.0,1498,133,85,70,-0.1,-14.7,1.2,16.7,strict_relaxed_tol,0.2,strict,0.5,671.81,8,,,True,34.8,3.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,lunch_only,1500.0,156.0,84.0,60.0,1563,167,85,62,4.2,7.1,1.2,3.3,single_meal_kcal_only,0.08,strict,1.0,119.01,1,,,True,66.8,5.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,dinner_only,1500.0,156.0,84.0,60.0,1423,95,83,79,-5.1,-39.1,-1.2,31.7,single_meal_kcal_only,0.08,strict,1.0,113.01,1,,,True,64.8,6.0
+v1,synth_1500_extremely_high_protein,1500kcal / extremely high protein,synthetic,lunch_snack,1500.0,156.0,84.0,60.0,1529,155,93,60,1.9,-0.6,10.7,0.0,strict_tight,0.08,strict,0.5,140.72,2,,,True,61.4,4.5
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,full_day,1500.0,96.0,211.5,30.0,1516,79,212,39,1.1,-17.7,0.2,30.0,strict_relaxed_tol,0.15,strict,0.5,510.97,6,,,True,34.8,6.0
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,lunch_snack_dinner,1500.0,96.0,211.5,30.0,1485,80,209,37,-1.0,-16.7,-1.2,23.3,strict_relaxed_tol,0.1,strict,0.5,337.38,4,,,True,35.5,6.0
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,lunch_dinner,1500.0,96.0,211.5,30.0,1465,80,210,34,-2.3,-16.7,-0.7,13.3,strict_relaxed_tol,0.1,strict,0.5,398.04,4,,,True,39.0,6.5
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,lunch_only,1500.0,96.0,211.5,30.0,1518,96,215,30,1.2,0.0,1.7,0.0,single_meal_kcal_only,0.08,strict,1.0,68.53,1,,,True,62.1,9.0
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,dinner_only,1500.0,96.0,211.5,30.0,1429,51,233,33,-4.7,-46.9,10.2,10.0,single_meal_kcal_only,0.08,strict,1.0,73.2,1,,,True,67.7,11.0
+v1,synth_1500_low_fat,1500kcal / low fat,synthetic,lunch_snack,1500.0,96.0,211.5,30.0,1398,91,163,42,-6.8,-5.2,-22.9,40.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1119.26,17,,,True,37.5,5.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,full_day,1500.0,96.0,245.2,15.0,1854,93,249,54,23.6,-3.1,1.5,260.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1116.35,17,,,True,33.2,7.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,lunch_snack_dinner,1500.0,96.0,245.2,15.0,1632,76,232,45,8.8,-20.8,-5.4,200.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1118.16,17,,,True,37.7,7.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,lunch_dinner,1500.0,96.0,245.2,15.0,1504,73,215,39,0.3,-24.0,-12.3,160.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1217.22,17,,,True,40.9,7.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,lunch_only,1500.0,96.0,245.2,15.0,1442,71,240,22,-3.9,-26.0,-2.1,46.7,single_meal_kcal_only,0.08,strict,1.0,70.04,1,,,True,72.6,10.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,dinner_only,1500.0,96.0,245.2,15.0,1452,41,271,23,-3.2,-57.3,10.5,53.3,single_meal_kcal_only,0.08,strict,1.0,72.82,1,,,True,78.8,13.0
+v1,synth_1500_extremely_low_fat,1500kcal / extremely low fat,synthetic,lunch_snack,1500.0,96.0,245.2,15.0,708,45,79,24,-52.8,-53.1,-67.8,60.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1111.04,17,,,True,29.6,2.0
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,full_day,1500.0,96.0,63.0,96.0,1514,99,68,94,0.9,3.1,7.9,-2.1,strict_tight,0.08,strict,0.5,144.34,2,,,True,32.4,8.0
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,lunch_snack_dinner,1500.0,96.0,63.0,96.0,1550,106,85,87,3.3,10.4,34.9,-9.4,strict_relaxed_tol,0.2,strict,0.5,671.71,8,,,True,34.7,3.5
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,lunch_dinner,1500.0,96.0,63.0,96.0,1569,111,81,89,4.6,15.6,28.6,-7.3,strict_relaxed_tol,0.15,strict,0.5,546.44,6,,,True,39.1,4.0
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,lunch_only,1500.0,96.0,63.0,96.0,1440,101,68,85,-4.0,5.2,7.9,-11.5,single_meal_kcal_only,0.08,strict,1.0,74.69,1,,,True,57.5,12.0
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,dinner_only,1500.0,96.0,63.0,96.0,1510,95,65,97,0.7,-1.0,3.2,1.0,single_meal_kcal_only,0.08,strict,1.0,68.31,1,,,True,50.8,7.0
+v1,synth_1500_high_fat,1500kcal / high fat,synthetic,lunch_snack,1500.0,96.0,63.0,96.0,881,75,62,37,-41.3,-21.9,-1.6,-61.5,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1118.32,17,,,True,47.3,2.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,full_day,1500.0,80.6,45.0,110.8,1463,87,113,73,-2.5,7.9,151.1,-34.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1238.48,17,,,True,21.0,5.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,lunch_snack_dinner,1500.0,80.6,45.0,110.8,1287,82,97,64,-14.2,1.7,115.6,-42.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1068.9,17,,,True,23.9,2.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,lunch_dinner,1500.0,80.6,45.0,110.8,1175,87,76,58,-21.7,7.9,68.9,-47.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1296.14,17,,,True,39.2,3.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,lunch_only,1500.0,80.6,45.0,110.8,1508,82,75,98,0.5,1.7,66.7,-11.6,single_meal_kcal_only,0.08,strict,1.0,64.79,1,,,True,73.3,16.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,dinner_only,1500.0,80.6,45.0,110.8,1409,85,57,94,-6.1,5.5,26.7,-15.2,single_meal_kcal_only,0.08,strict,1.0,80.35,1,,,True,44.1,9.0
+v1,synth_1500_extremely_high_fat,1500kcal / extremely high fat,synthetic,lunch_snack,1500.0,80.6,45.0,110.8,877,75,61,37,-41.5,-6.9,35.6,-66.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1050.22,17,,,True,47.6,2.0
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,full_day,1500.0,120.0,66.0,84.0,1522,115,75,85,1.5,-4.2,13.6,1.2,strict_tight,0.08,strict,0.5,224.15,2,,,True,25.2,5.0
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,lunch_snack_dinner,1500.0,120.0,66.0,84.0,1521,123,73,82,1.4,2.5,10.6,-2.4,strict_tight,0.08,strict,0.5,213.72,2,,,True,45.4,4.5
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,lunch_dinner,1500.0,120.0,66.0,84.0,1537,131,80,77,2.5,9.2,21.2,-8.3,strict_tight,0.08,strict,1.0,66.17,1,,,True,40.0,4.0
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,lunch_only,1500.0,120.0,66.0,84.0,1515,126,66,83,1.0,5.0,0.0,-1.2,single_meal_kcal_only,0.08,strict,1.0,64.14,1,,,True,45.6,10.0
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,dinner_only,1500.0,120.0,66.0,84.0,1488,107,65,89,-0.8,-10.8,-1.5,6.0,single_meal_kcal_only,0.08,strict,1.0,95.95,1,,,True,72.2,7.0
+v1,synth_1500_low_carbs,1500kcal / low carbs,synthetic,lunch_snack,1500.0,120.0,66.0,84.0,1487,120,105,65,-0.9,0.0,59.1,-22.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1059.46,17,,,True,42.1,5.0
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,full_day,1500.0,122.8,45.0,92.1,1425,101,68,83,-5.0,-17.8,51.1,-9.9,strict_relaxed_tol,0.2,strict,0.5,525.78,8,,,True,26.9,5.5
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,lunch_snack_dinner,1500.0,122.8,45.0,92.1,1580,123,98,78,5.3,0.2,117.8,-15.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1453.09,17,,,True,29.1,3.0
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,lunch_dinner,1500.0,122.8,45.0,92.1,1534,129,65,85,2.3,5.0,44.4,-7.7,strict_relaxed_tol,0.15,strict,0.5,457.35,6,,,True,50.0,5.0
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,lunch_only,1500.0,122.8,45.0,92.1,1442,123,63,78,-3.9,0.2,40.0,-15.3,single_meal_kcal_only,0.08,strict,1.0,65.78,1,,,True,43.4,9.0
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,dinner_only,1500.0,122.8,45.0,92.1,1540,119,44,99,2.7,-3.1,-2.2,7.5,single_meal_kcal_only,0.08,strict,1.0,88.13,1,,,True,79.8,8.0
+v1,synth_1500_extremely_low_carbs,1500kcal / extremely low carbs,synthetic,lunch_snack,1500.0,122.8,45.0,92.1,877,75,61,37,-41.5,-38.9,35.6,-59.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1072.46,17,,,True,47.6,2.0
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,full_day,1500.0,72.0,222.0,36.0,1521,73,223,37,1.4,1.4,0.5,2.8,strict_tight,0.08,strict,0.5,204.62,2,,,True,40.5,7.0
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,lunch_snack_dinner,1500.0,72.0,222.0,36.0,1496,68,223,37,-0.3,-5.6,0.5,2.8,strict_tight,0.08,strict,0.5,236.37,2,,,True,38.2,6.5
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,lunch_dinner,1500.0,72.0,222.0,36.0,1586,75,226,42,5.7,4.2,1.8,16.7,strict_tight,0.08,strict,1.0,71.5,1,,,True,38.8,7.0
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,lunch_only,1500.0,72.0,222.0,36.0,1530,72,230,36,2.0,0.0,3.6,0.0,single_meal_kcal_only,0.08,strict,1.0,98.56,1,,,True,54.7,8.0
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,dinner_only,1500.0,72.0,222.0,36.0,1427,52,225,36,-4.9,-27.8,1.4,0.0,single_meal_kcal_only,0.08,strict,1.0,85.07,1,,,True,61.7,10.0
+v1,synth_1500_high_carbs,1500kcal / high carbs,synthetic,lunch_snack,1500.0,72.0,222.0,36.0,1398,91,163,42,-6.8,26.4,-26.6,16.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1068.3,17,,,True,37.5,5.0
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,full_day,1500.0,54.0,273.8,21.0,1570,86,187,53,4.7,59.3,-31.7,152.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1102.26,17,,,True,28.0,5.0
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,lunch_snack_dinner,1500.0,54.0,273.8,21.0,1632,76,232,45,8.8,40.7,-15.3,114.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1080.69,17,,,True,37.7,7.0
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,lunch_dinner,1500.0,54.0,273.8,21.0,1619,69,267,31,7.9,27.8,-2.5,47.6,relaxed_culinary,0.2,relaxed,0.5,1009.36,16,,,True,51.6,9.5
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,lunch_only,1500.0,54.0,273.8,21.0,1519,73,256,23,1.3,35.2,-6.5,9.5,single_meal_kcal_only,0.08,strict,1.0,63.08,1,,,True,75.8,11.0
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,dinner_only,1500.0,54.0,273.8,21.0,1452,41,271,23,-3.2,-24.1,-1.0,9.5,single_meal_kcal_only,0.08,strict,1.0,65.18,1,,,True,78.8,13.0
+v1,synth_1500_extremely_high_carbs,1500kcal / extremely high carbs,synthetic,lunch_snack,1500.0,54.0,273.8,21.0,708,45,79,24,-52.8,-16.7,-71.1,14.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1061.22,17,,,True,29.6,2.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,full_day,2000.0,120.0,211.2,75.0,2001,121,210,75,0.1,0.8,-0.6,0.0,strict_tight,0.08,strict,1.0,205.75,1,,,True,19.1,3.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,lunch_snack_dinner,2000.0,120.0,211.2,75.0,1986,120,210,74,-0.7,0.0,-0.6,-1.3,strict_tight,0.08,strict,1.0,176.39,1,,,True,21.0,4.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,lunch_dinner,2000.0,120.0,211.2,75.0,1984,116,211,75,-0.8,-3.3,-0.1,0.0,strict_tight,0.08,strict,1.0,144.36,1,,,True,22.2,5.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,lunch_only,2000.0,120.0,211.2,75.0,1975,116,208,75,-1.2,-3.3,-1.5,0.0,single_meal_kcal_only,0.08,strict,1.0,98.08,1,,,True,37.1,9.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,dinner_only,2000.0,120.0,211.2,75.0,1955,104,217,75,-2.2,-13.3,2.7,0.0,single_meal_kcal_only,0.08,strict,1.0,65.5,1,,,True,47.1,10.0
+v1,synth_2000_balanced,2000kcal / balanced,synthetic,lunch_snack,2000.0,120.0,211.2,75.0,2048,132,211,75,2.4,10.0,-0.1,0.0,strict_tight,0.08,strict,1.0,159.43,1,,,True,30.6,7.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,full_day,2000.0,82.5,248.8,75.0,2056,99,246,75,2.8,20.0,-1.1,0.0,strict_tight,0.08,strict,1.0,137.33,1,,,True,21.4,5.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,lunch_snack_dinner,2000.0,82.5,248.8,75.0,2028,89,249,75,1.4,7.9,0.1,0.0,strict_tight,0.08,strict,1.0,126.95,1,,,True,21.1,5.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,lunch_dinner,2000.0,82.5,248.8,75.0,2006,88,248,74,0.3,6.7,-0.3,-1.3,strict_tight,0.08,strict,0.5,190.93,2,,,True,46.9,11.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,lunch_only,2000.0,82.5,248.8,75.0,2008,84,248,76,0.4,1.8,-0.3,1.3,single_meal_kcal_only,0.08,strict,1.0,66.52,1,,,True,68.1,16.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,dinner_only,2000.0,82.5,248.8,75.0,1997,82,248,75,-0.1,-0.6,-0.3,0.0,single_meal_kcal_only,0.08,strict,1.0,92.44,1,,,True,48.5,11.0
+v1,synth_2000_low_protein,2000kcal / low protein,synthetic,lunch_snack,2000.0,82.5,248.8,75.0,1974,105,242,65,-1.3,27.3,-2.7,-13.3,strict_relaxed_tol,0.1,strict,0.5,360.44,4,,,True,26.5,5.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,full_day,2000.0,45.0,286.2,75.0,2081,96,255,75,4.0,113.3,-10.9,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1306.88,17,,,True,30.7,5.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,lunch_snack_dinner,2000.0,45.0,286.2,75.0,1964,76,275,62,-1.8,68.9,-3.9,-17.3,relaxed_culinary,0.2,relaxed,0.5,1260.68,16,,,True,32.6,6.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,lunch_dinner,2000.0,45.0,286.2,75.0,1910,87,250,63,-4.5,93.3,-12.6,-16.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1095.04,17,,,True,26.8,6.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,lunch_only,2000.0,45.0,286.2,75.0,2032,83,265,71,1.6,84.4,-7.4,-5.3,single_meal_kcal_only,0.08,strict,1.0,66.68,1,,,True,67.3,16.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,dinner_only,2000.0,45.0,286.2,75.0,2082,66,287,75,4.1,46.7,0.3,0.0,single_meal_kcal_only,0.08,strict,1.0,85.51,1,,,True,61.6,15.0
+v1,synth_2000_extremely_low_protein,2000kcal / extremely low protein,synthetic,lunch_snack,2000.0,45.0,286.2,75.0,1115,55,127,43,-44.2,22.2,-55.6,-42.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1083.48,17,,,True,34.4,3.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,full_day,2000.0,150.0,181.2,75.0,1994,147,180,76,-0.3,-2.0,-0.7,1.3,strict_tight,0.08,strict,1.0,187.93,1,,,True,32.0,5.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,lunch_snack_dinner,2000.0,150.0,181.2,75.0,1967,131,182,79,-1.7,-12.7,0.4,5.3,strict_tight,0.08,strict,1.0,158.67,1,,,True,23.4,3.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,lunch_dinner,2000.0,150.0,181.2,75.0,2051,150,188,78,2.5,0.0,3.8,4.0,strict_tight,0.08,strict,1.0,161.09,1,,,True,30.5,4.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,lunch_only,2000.0,150.0,181.2,75.0,1996,155,181,72,-0.2,3.3,-0.1,-4.0,single_meal_kcal_only,0.08,strict,1.0,100.85,1,,,True,42.8,10.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,dinner_only,2000.0,150.0,181.2,75.0,1933,114,179,85,-3.4,-24.0,-1.2,13.3,single_meal_kcal_only,0.08,strict,1.0,66.66,1,,,True,55.6,8.0
+v1,synth_2000_high_protein,2000kcal / high protein,synthetic,lunch_snack,2000.0,150.0,181.2,75.0,2024,155,181,76,1.2,3.3,-0.1,1.3,strict_tight,0.08,strict,1.0,116.32,1,,,True,41.2,4.0
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,full_day,2000.0,195.0,136.2,75.0,2026,187,136,82,1.3,-4.1,-0.1,9.3,strict_tight,0.08,strict,0.5,253.86,2,,,True,34.6,5.5
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,lunch_snack_dinner,2000.0,195.0,136.2,75.0,2025,171,143,86,1.2,-12.3,5.0,14.7,strict_relaxed_tol,0.15,strict,0.5,531.08,6,,,True,36.1,3.5
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,lunch_dinner,2000.0,195.0,136.2,75.0,2064,172,152,85,3.2,-11.8,11.6,13.3,strict_relaxed_tol,0.1,strict,0.5,342.79,4,,,True,35.4,3.5
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,lunch_only,2000.0,195.0,136.2,75.0,2063,206,136,77,3.1,5.6,-0.1,2.7,single_meal_kcal_only,0.08,strict,1.0,115.0,1,,,True,60.7,6.0
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,dinner_only,2000.0,195.0,136.2,75.0,1911,125,140,95,-4.5,-35.9,2.8,26.7,single_meal_kcal_only,0.08,strict,1.0,67.46,1,,,True,64.3,8.0
+v1,synth_2000_extremely_high_protein,2000kcal / extremely high protein,synthetic,lunch_snack,2000.0,195.0,136.2,75.0,1957,180,139,76,-2.1,-7.7,2.1,1.3,strict_tight,0.08,strict,1.0,108.9,1,,,True,53.3,5.0
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,full_day,2000.0,120.0,295.6,37.5,1984,102,293,45,-0.8,-15.0,-0.9,20.0,strict_tight,0.08,strict,0.5,209.64,2,,,True,42.1,9.5
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,lunch_snack_dinner,2000.0,120.0,295.6,37.5,1979,103,297,42,-1.1,-14.2,0.5,12.0,strict_tight,0.08,strict,0.5,197.76,2,,,True,46.7,10.5
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,lunch_dinner,2000.0,120.0,295.6,37.5,2026,117,291,44,1.3,-2.5,-1.6,17.3,strict_tight,0.08,strict,0.5,177.07,2,,,True,45.6,10.5
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,lunch_only,2000.0,120.0,295.6,37.5,2006,112,304,38,0.3,-6.7,2.8,1.3,single_meal_kcal_only,0.08,strict,1.0,93.07,1,,,True,67.9,13.0
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,dinner_only,2000.0,120.0,295.6,37.5,1850,61,314,39,-7.5,-49.2,6.2,4.0,single_meal_kcal_only,0.08,strict,1.0,89.97,1,,,True,71.3,15.0
+v1,synth_2000_low_fat,2000kcal / low fat,synthetic,lunch_snack,2000.0,120.0,295.6,37.5,1606,122,166,51,-19.7,1.7,-43.8,36.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1069.91,17,,,True,39.0,5.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,full_day,2000.0,120.0,337.8,18.8,1854,93,249,54,-7.3,-22.5,-26.3,187.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1405.83,17,,,True,33.2,7.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,lunch_snack_dinner,2000.0,120.0,337.8,18.8,2105,111,294,54,5.2,-7.5,-13.0,187.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1592.32,17,,,True,41.8,10.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,lunch_dinner,2000.0,120.0,337.8,18.8,1977,109,276,49,-1.1,-9.2,-18.3,160.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1196.33,17,,,True,44.5,10.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,lunch_only,2000.0,120.0,337.8,18.8,1938,86,343,25,-3.1,-28.3,1.5,33.0,single_meal_kcal_only,0.08,strict,1.0,68.88,1,,,True,81.1,15.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,dinner_only,2000.0,120.0,337.8,18.8,1892,49,370,24,-5.4,-59.2,9.5,27.7,single_meal_kcal_only,0.08,strict,1.0,70.39,1,,,True,83.7,18.0
+v1,synth_2000_extremely_low_fat,2000kcal / extremely low fat,synthetic,lunch_snack,2000.0,120.0,337.8,18.8,708,45,79,24,-64.6,-62.5,-76.6,27.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1220.59,17,,,True,29.6,2.0
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,full_day,2000.0,120.0,110.0,120.0,2023,123,121,116,1.1,2.5,10.0,-3.3,strict_tight,0.08,strict,1.0,92.47,1,,,True,24.2,8.0
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,lunch_snack_dinner,2000.0,120.0,110.0,120.0,1976,138,110,109,-1.2,15.0,0.0,-9.2,strict_tight,0.08,strict,0.5,235.09,2,,,True,35.0,4.5
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,lunch_dinner,2000.0,120.0,110.0,120.0,1994,137,117,109,-0.3,14.2,6.4,-9.2,strict_tight,0.08,strict,0.5,215.57,2,,,True,30.8,4.0
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,lunch_only,2000.0,120.0,110.0,120.0,1984,121,109,118,-0.8,0.8,-0.9,-1.7,single_meal_kcal_only,0.08,strict,1.0,111.11,1,,,True,59.2,17.0
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,dinner_only,2000.0,120.0,110.0,120.0,1977,118,110,119,-1.1,-1.7,0.0,-0.8,single_meal_kcal_only,0.08,strict,1.0,78.85,1,,,True,46.6,9.0
+v1,synth_2000_high_fat,2000kcal / high fat,synthetic,lunch_snack,2000.0,120.0,110.0,120.0,1499,120,107,65,-25.1,0.0,-2.7,-45.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1168.06,17,,,True,41.7,5.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,full_day,2000.0,108.4,56.2,149.0,1861,109,119,105,-7.0,0.6,111.7,-29.5,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1410.61,17,,,True,29.6,9.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,lunch_snack_dinner,2000.0,108.4,56.2,149.0,1525,106,97,79,-23.8,-2.2,72.6,-47.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1253.82,17,,,True,40.3,4.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,lunch_dinner,2000.0,108.4,56.2,149.0,1398,103,79,74,-30.1,-5.0,40.6,-50.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1152.67,17,,,True,43.9,4.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,lunch_only,2000.0,108.4,56.2,149.0,2129,108,96,146,6.5,-0.4,70.8,-2.0,single_meal_kcal_only,0.08,strict,1.0,76.17,1,,,True,81.1,25.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,dinner_only,2000.0,108.4,56.2,149.0,1854,118,63,126,-7.3,8.9,12.1,-15.4,single_meal_kcal_only,0.08,strict,1.0,91.62,1,,,True,49.7,11.0
+v1,synth_2000_extremely_high_fat,2000kcal / extremely high fat,synthetic,lunch_snack,2000.0,108.4,56.2,149.0,877,75,61,37,-56.1,-30.8,8.5,-75.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1220.23,17,,,True,47.6,2.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,full_day,2000.0,150.0,113.8,105.0,2009,155,116,103,0.4,3.3,1.9,-1.9,strict_tight,0.08,strict,1.0,73.64,1,,,True,30.6,4.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,lunch_snack_dinner,2000.0,150.0,113.8,105.0,2015,153,117,104,0.8,2.0,2.8,-1.0,strict_tight,0.08,strict,1.0,147.1,1,,,True,38.1,5.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,lunch_dinner,2000.0,150.0,113.8,105.0,1988,147,114,105,-0.6,-2.0,0.2,0.0,strict_tight,0.08,strict,1.0,131.61,1,,,True,30.9,4.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,lunch_only,2000.0,150.0,113.8,105.0,2005,144,114,108,0.2,-4.0,0.2,2.9,single_meal_kcal_only,0.08,strict,1.0,101.22,1,,,True,48.2,14.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,dinner_only,2000.0,150.0,113.8,105.0,1974,137,114,108,-1.3,-8.7,0.2,2.9,single_meal_kcal_only,0.08,strict,1.0,71.08,1,,,True,70.0,9.0
+v1,synth_2000_low_carbs,2000kcal / low carbs,synthetic,lunch_snack,2000.0,150.0,113.8,105.0,2103,177,141,93,5.1,18.0,23.9,-11.4,strict_relaxed_tol,0.2,strict,0.5,532.73,8,,,True,44.6,7.5
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,full_day,2000.0,165.1,56.2,123.8,2039,165,86,115,1.9,-0.1,53.0,-7.1,strict_relaxed_tol,0.2,strict,0.5,698.18,8,,,True,41.4,5.5
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,lunch_snack_dinner,2000.0,165.1,56.2,123.8,2037,181,77,112,1.8,9.6,37.0,-9.5,strict_relaxed_tol,0.1,strict,0.5,277.16,4,,,True,49.0,6.5
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,lunch_dinner,2000.0,165.1,56.2,123.8,2008,181,70,112,0.4,9.6,24.6,-9.5,strict_tight,0.08,strict,0.5,192.77,2,,,True,49.7,6.5
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,lunch_only,2000.0,165.1,56.2,123.8,1995,167,77,113,-0.2,1.2,37.0,-8.7,single_meal_kcal_only,0.08,strict,1.0,80.46,1,,,True,48.4,14.0
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,dinner_only,2000.0,165.1,56.2,123.8,2017,160,56,128,0.9,-3.1,-0.4,3.4,single_meal_kcal_only,0.08,strict,1.0,75.09,1,,,True,83.7,11.0
+v1,synth_2000_extremely_low_carbs,2000kcal / extremely low carbs,synthetic,lunch_snack,2000.0,165.1,56.2,123.8,1698,172,103,67,-15.1,4.2,83.3,-45.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1126.97,17,,,True,61.5,5.0
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,full_day,2000.0,90.0,308.8,45.0,2002,90,309,45,0.1,0.0,0.1,0.0,strict_tight,0.08,strict,0.5,230.06,2,,,True,41.7,9.5
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,lunch_snack_dinner,2000.0,90.0,308.8,45.0,2002,91,309,45,0.1,1.1,0.1,0.0,strict_tight,0.08,strict,0.5,219.52,2,,,True,44.0,10.0
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,lunch_dinner,2000.0,90.0,308.8,45.0,2002,91,308,45,0.1,1.1,-0.3,0.0,strict_tight,0.08,strict,0.5,232.09,2,,,True,50.5,11.5
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,lunch_only,2000.0,90.0,308.8,45.0,2004,91,309,45,0.2,1.1,0.1,0.0,single_meal_kcal_only,0.08,strict,1.0,99.15,1,,,True,67.9,13.0
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,dinner_only,2000.0,90.0,308.8,45.0,1935,71,313,44,-3.2,-21.1,1.4,-2.2,single_meal_kcal_only,0.08,strict,1.0,66.28,1,,,True,68.2,15.0
+v1,synth_2000_high_carbs,2000kcal / high carbs,synthetic,lunch_snack,2000.0,90.0,308.8,45.0,1483,94,175,45,-25.9,4.4,-43.3,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1208.73,17,,,True,35.3,5.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,full_day,2000.0,67.5,373.4,26.2,1854,93,249,54,-7.3,37.8,-33.3,106.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1206.58,17,,,True,33.2,7.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,lunch_snack_dinner,2000.0,67.5,373.4,26.2,2031,78,342,39,1.6,15.6,-8.4,48.9,relaxed_culinary,0.2,relaxed,0.5,1567.95,16,,,True,52.0,12.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,lunch_dinner,2000.0,67.5,373.4,26.2,2079,93,336,40,4.0,37.8,-10.0,52.7,strict_relaxed_tol,0.2,strict,0.5,609.08,8,,,True,50.8,12.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,lunch_only,2000.0,67.5,373.4,26.2,2042,89,365,25,2.1,31.9,-2.2,-4.6,single_meal_kcal_only,0.08,strict,1.0,73.23,1,,,True,82.0,16.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,dinner_only,2000.0,67.5,373.4,26.2,1977,51,382,27,-1.1,-24.4,2.3,3.1,single_meal_kcal_only,0.08,strict,1.0,74.57,1,,,True,80.1,18.0
+v1,synth_2000_extremely_high_carbs,2000kcal / extremely high carbs,synthetic,lunch_snack,2000.0,67.5,373.4,26.2,794,48,91,27,-60.3,-28.9,-75.6,3.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1345.65,17,,,True,26.4,2.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,full_day,2500.0,136.0,297.8,85.0,2504,136,298,85,0.2,0.0,0.1,0.0,strict_tight,0.08,strict,1.0,279.25,1,,,True,24.6,7.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,lunch_snack_dinner,2500.0,136.0,297.8,85.0,2507,136,300,85,0.3,0.0,0.7,0.0,strict_tight,0.08,strict,1.0,211.46,1,,,True,21.1,6.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,lunch_dinner,2500.0,136.0,297.8,85.0,2506,136,301,84,0.2,0.0,1.1,-1.2,strict_tight,0.08,strict,1.0,185.05,1,,,True,31.6,9.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,lunch_only,2500.0,136.0,297.8,85.0,2523,135,304,85,0.9,-0.7,2.1,0.0,single_meal_kcal_only,0.08,strict,1.0,103.64,1,,,True,49.8,12.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,dinner_only,2500.0,136.0,297.8,85.0,2461,124,297,86,-1.6,-8.8,-0.3,1.2,single_meal_kcal_only,0.08,strict,1.0,69.99,1,,,True,50.1,14.0
+v1,synth_2500_balanced,2500kcal / balanced,synthetic,lunch_snack,2500.0,136.0,297.8,85.0,2559,146,302,85,2.4,7.4,1.4,0.0,strict_tight,0.08,strict,1.0,136.2,1,,,True,28.6,7.0
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,full_day,2500.0,93.5,340.2,85.0,2538,109,334,85,1.5,16.6,-1.8,0.0,strict_tight,0.08,strict,1.0,181.27,1,,,True,27.7,8.0
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,lunch_snack_dinner,2500.0,93.5,340.2,85.0,2496,94,339,85,-0.2,0.5,-0.4,0.0,strict_tight,0.08,strict,0.5,354.48,2,,,True,23.0,6.5
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,lunch_dinner,2500.0,93.5,340.2,85.0,2563,112,339,84,2.5,19.8,-0.4,-1.2,strict_tight,0.08,strict,0.5,192.78,2,,,True,33.3,10.0
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,lunch_only,2500.0,93.5,340.2,85.0,2500,100,338,83,0.0,7.0,-0.6,-2.4,single_meal_kcal_only,0.08,strict,1.0,105.99,1,,,True,54.7,16.0
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,dinner_only,2500.0,93.5,340.2,85.0,2504,94,341,85,0.2,0.5,0.2,0.0,single_meal_kcal_only,0.08,strict,1.0,107.51,1,,,True,52.7,15.0
+v1,synth_2500_low_protein,2500kcal / low protein,synthetic,lunch_snack,2500.0,93.5,340.2,85.0,2559,120,306,95,2.4,28.3,-10.1,11.8,relaxed_culinary,0.1,relaxed,1.0,815.93,11,,,True,35.0,7.0
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,full_day,2500.0,51.0,382.8,85.0,2663,110,365,85,6.5,115.7,-4.6,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1727.9,17,,,True,28.8,8.0
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,lunch_snack_dinner,2500.0,51.0,382.8,85.0,2461,89,374,68,-1.6,74.5,-2.3,-20.0,strict_relaxed_tol,0.2,strict,0.5,694.39,8,,,True,37.5,10.5
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,lunch_dinner,2500.0,51.0,382.8,85.0,1896,89,219,74,-24.2,74.5,-42.8,-12.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1294.87,17,,,True,45.1,10.0
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,lunch_only,2500.0,51.0,382.8,85.0,2484,99,335,83,-0.6,94.1,-12.5,-2.4,single_meal_kcal_only,0.08,strict,1.0,101.27,1,,,True,55.0,16.0
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,dinner_only,2500.0,51.0,382.8,85.0,2589,77,380,84,3.6,51.0,-0.7,-1.2,single_meal_kcal_only,0.08,strict,1.0,77.87,1,,,True,52.8,16.0
+v1,synth_2500_extremely_low_protein,2500kcal / extremely low protein,synthetic,lunch_snack,2500.0,51.0,382.8,85.0,1115,55,127,43,-55.4,7.8,-66.8,-49.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1185.02,17,,,True,34.4,3.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,full_day,2500.0,170.0,263.8,85.0,2500,170,265,85,0.0,0.0,0.5,0.0,strict_tight,0.08,strict,1.0,410.16,1,,,True,20.4,4.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,lunch_snack_dinner,2500.0,170.0,263.8,85.0,2508,175,260,85,0.3,2.9,-1.4,0.0,strict_tight,0.08,strict,1.0,296.97,1,,,True,33.3,6.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,lunch_dinner,2500.0,170.0,263.8,85.0,2500,170,260,87,0.0,0.0,-1.4,2.4,strict_tight,0.08,strict,1.0,162.11,1,,,True,25.0,7.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,lunch_only,2500.0,170.0,263.8,85.0,2523,170,268,86,0.9,0.0,1.6,1.2,single_meal_kcal_only,0.08,strict,1.0,106.89,1,,,True,47.4,14.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,dinner_only,2500.0,170.0,263.8,85.0,2373,123,277,86,-5.1,-27.6,5.0,1.2,single_meal_kcal_only,0.08,strict,1.0,92.05,1,,,True,48.2,13.0
+v1,synth_2500_high_protein,2500kcal / high protein,synthetic,lunch_snack,2500.0,170.0,263.8,85.0,2509,171,264,86,0.4,0.6,0.1,1.2,strict_tight,0.08,strict,1.0,138.2,1,,,True,33.3,7.0
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,full_day,2500.0,221.0,212.8,85.0,2473,206,213,88,-1.1,-6.8,0.1,3.5,strict_tight,0.08,strict,1.0,130.48,1,,,True,36.1,7.0
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,lunch_snack_dinner,2500.0,221.0,212.8,85.0,2597,204,232,95,3.9,-7.7,9.0,11.8,strict_tight,0.08,strict,0.5,275.98,2,,,True,36.2,6.5
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,lunch_dinner,2500.0,221.0,212.8,85.0,2531,208,213,94,1.2,-5.9,0.1,10.6,strict_tight,0.08,strict,0.5,284.41,2,,,True,37.1,6.0
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,lunch_only,2500.0,221.0,212.8,85.0,2516,221,213,87,0.6,0.0,0.1,2.4,single_meal_kcal_only,0.08,strict,1.0,101.23,1,,,True,49.8,7.0
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,dinner_only,2500.0,221.0,212.8,85.0,2329,135,214,104,-6.8,-38.9,0.6,22.4,single_meal_kcal_only,0.08,strict,1.0,91.02,1,,,True,52.7,9.0
+v1,synth_2500_extremely_high_protein,2500kcal / extremely high protein,synthetic,lunch_snack,2500.0,221.0,212.8,85.0,2499,222,210,86,-0.0,0.5,-1.3,1.2,strict_tight,0.08,strict,1.0,87.15,1,,,True,50.1,7.0
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,full_day,2500.0,136.0,393.4,42.5,2538,122,394,53,1.5,-10.3,0.2,24.7,strict_tight,0.08,strict,0.5,220.76,2,,,True,46.8,13.5
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,lunch_snack_dinner,2500.0,136.0,393.4,42.5,2527,127,390,51,1.1,-6.6,-0.9,20.0,strict_tight,0.08,strict,0.5,211.49,2,,,True,50.5,14.5
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,lunch_dinner,2500.0,136.0,393.4,42.5,2520,129,390,50,0.8,-5.1,-0.9,17.6,strict_tight,0.08,strict,0.5,263.66,2,,,True,48.9,14.0
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,lunch_only,2500.0,136.0,393.4,42.5,2510,128,403,43,0.4,-5.9,2.4,1.2,single_meal_kcal_only,0.08,strict,1.0,106.95,1,,,True,70.9,17.0
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,dinner_only,2500.0,136.0,393.4,42.5,2375,80,411,46,-5.0,-41.2,4.5,8.2,single_meal_kcal_only,0.08,strict,1.0,91.57,1,,,True,74.1,20.0
+v1,synth_2500_low_fat,2500kcal / low fat,synthetic,lunch_snack,2500.0,136.0,393.4,42.5,1978,134,225,60,-20.9,-1.5,-42.8,41.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1150.82,17,,,True,37.0,7.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,full_day,2500.0,136.0,441.2,21.2,2327,128,310,64,-6.9,-5.9,-29.7,201.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1807.14,17,,,True,37.8,10.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,lunch_snack_dinner,2500.0,136.0,441.2,21.2,2366,117,345,58,-5.4,-14.0,-21.8,173.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1788.8,17,,,True,44.6,12.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,lunch_dinner,2500.0,136.0,441.2,21.2,2810,131,437,60,12.4,-3.7,-1.0,183.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1521.69,17,,,True,43.8,14.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,lunch_only,2500.0,136.0,441.2,21.2,2384,101,435,27,-4.6,-25.7,-1.4,27.4,single_meal_kcal_only,0.08,strict,1.0,93.71,1,,,True,83.4,19.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,dinner_only,2500.0,136.0,441.2,21.2,2332,58,468,25,-6.7,-57.4,6.1,17.9,single_meal_kcal_only,0.08,strict,1.0,86.95,1,,,True,86.8,23.0
+v1,synth_2500_extremely_low_fat,2500kcal / extremely low fat,synthetic,lunch_snack,2500.0,136.0,441.2,21.2,708,45,79,24,-71.7,-66.9,-82.1,13.2,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1435.58,17,,,True,29.6,2.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,full_day,2500.0,136.0,183.0,136.0,2499,136,181,137,-0.0,0.0,-1.1,0.7,strict_tight,0.08,strict,1.0,224.1,1,,,True,27.0,11.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,lunch_snack_dinner,2500.0,136.0,183.0,136.0,2500,158,182,127,0.0,16.2,-0.5,-6.6,strict_tight,0.08,strict,1.0,173.56,1,,,True,24.6,4.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,lunch_dinner,2500.0,136.0,183.0,136.0,2435,149,183,123,-2.6,9.6,0.0,-9.6,strict_tight,0.08,strict,0.5,434.79,2,,,True,25.2,6.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,lunch_only,2500.0,136.0,183.0,136.0,2500,137,181,136,0.0,0.7,-1.1,0.0,single_meal_kcal_only,0.08,strict,1.0,97.51,1,,,True,49.7,18.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,dinner_only,2500.0,136.0,183.0,136.0,2494,139,184,134,-0.2,2.2,0.5,-1.5,single_meal_kcal_only,0.08,strict,1.0,115.58,1,,,True,43.1,8.0
+v1,synth_2500_high_fat,2500kcal / high fat,synthetic,lunch_snack,2500.0,136.0,183.0,136.0,2091,137,182,91,-16.4,0.7,-0.5,-33.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1267.83,17,,,True,29.9,7.0
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,full_day,2500.0,136.0,68.2,187.0,2586,163,102,169,3.4,19.9,49.6,-9.6,strict_relaxed_tol,0.15,strict,0.5,503.51,6,,,True,36.7,15.5
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,lunch_snack_dinner,2500.0,136.0,68.2,187.0,1734,136,99,88,-30.6,0.0,45.2,-52.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1222.99,17,,,True,35.4,4.0
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,lunch_dinner,2500.0,136.0,68.2,187.0,1675,137,84,88,-33.0,0.7,23.2,-52.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1161.8,17,,,True,36.7,4.0
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,lunch_only,2500.0,136.0,68.2,187.0,2338,138,98,155,-6.5,1.5,43.7,-17.1,single_meal_kcal_only,0.08,strict,1.0,77.06,1,,,True,73.8,25.0
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,dinner_only,2500.0,136.0,68.2,187.0,2338,138,80,163,-6.5,1.5,17.3,-12.8,single_meal_kcal_only,0.08,strict,1.0,75.15,1,,,True,53.2,18.0
+v1,synth_2500_extremely_high_fat,2500kcal / extremely high fat,synthetic,lunch_snack,2500.0,136.0,68.2,187.0,1489,141,100,58,-40.4,3.7,46.6,-69.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1509.51,17,,,True,56.1,4.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,full_day,2500.0,170.0,187.3,119.0,2500,170,187,119,0.0,0.0,-0.2,0.0,strict_tight,0.08,strict,1.0,283.29,1,,,True,18.4,6.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,lunch_snack_dinner,2500.0,170.0,187.3,119.0,2507,170,187,120,0.3,0.0,-0.2,0.8,strict_tight,0.08,strict,1.0,178.63,1,,,True,30.6,5.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,lunch_dinner,2500.0,170.0,187.3,119.0,2502,170,187,119,0.1,0.0,-0.2,0.0,strict_tight,0.08,strict,1.0,104.72,1,,,True,30.7,5.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,lunch_only,2500.0,170.0,187.3,119.0,2513,177,187,118,0.5,4.1,-0.2,-0.8,single_meal_kcal_only,0.08,strict,1.0,106.89,1,,,True,37.4,11.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,dinner_only,2500.0,170.0,187.3,119.0,2547,169,182,127,1.9,-0.6,-2.8,6.7,single_meal_kcal_only,0.08,strict,1.0,153.82,1,,,True,66.3,11.0
+v1,synth_2500_low_carbs,2500kcal / low carbs,synthetic,lunch_snack,2500.0,170.0,187.3,119.0,2430,176,188,108,-2.8,3.5,0.4,-9.2,strict_tight,0.08,strict,1.0,114.82,1,,,True,34.4,10.0
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,full_day,2500.0,204.0,76.8,153.0,2542,202,93,151,1.7,-1.0,21.1,-1.3,strict_tight,0.08,strict,0.5,319.96,2,,,True,39.3,7.5
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,lunch_snack_dinner,2500.0,204.0,76.8,153.0,2499,209,100,140,-0.0,2.5,30.2,-8.5,strict_tight,0.08,strict,0.5,372.82,2,,,True,49.1,8.0
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,lunch_dinner,2500.0,204.0,76.8,153.0,2481,214,91,140,-0.8,4.9,18.5,-8.5,strict_tight,0.08,strict,0.5,352.94,2,,,True,52.6,8.5
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,lunch_only,2500.0,204.0,76.8,153.0,2411,206,86,138,-3.6,1.0,12.0,-9.8,single_meal_kcal_only,0.08,strict,1.0,90.64,1,,,True,48.7,17.0
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,dinner_only,2500.0,204.0,76.8,153.0,2565,202,79,160,2.6,-1.0,2.9,4.6,single_meal_kcal_only,0.08,strict,1.0,145.6,1,,,True,83.8,14.0
+v1,synth_2500_extremely_low_carbs,2500kcal / extremely low carbs,synthetic,lunch_snack,2500.0,204.0,76.8,153.0,1905,180,110,83,-23.8,-11.8,43.2,-45.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1386.62,17,,,True,54.8,5.0
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,full_day,2500.0,102.0,408.2,51.0,2519,110,405,51,0.8,7.8,-0.8,0.0,strict_tight,0.08,strict,0.5,333.51,2,,,True,47.1,13.5
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,lunch_snack_dinner,2500.0,102.0,408.2,51.0,2507,103,410,51,0.3,1.0,0.4,0.0,strict_tight,0.08,strict,0.5,331.72,2,,,True,49.1,14.0
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,lunch_dinner,2500.0,102.0,408.2,51.0,2500,122,372,58,0.0,19.6,-8.9,13.7,strict_tight,0.08,strict,1.0,203.15,1,,,True,45.7,13.0
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,lunch_only,2500.0,102.0,408.2,51.0,2504,102,409,51,0.2,0.0,0.2,0.0,single_meal_kcal_only,0.08,strict,1.0,178.87,1,,,True,58.5,14.0
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,dinner_only,2500.0,102.0,408.2,51.0,2528,93,412,56,1.1,-8.8,0.9,9.8,single_meal_kcal_only,0.08,strict,1.0,118.07,1,,,True,69.6,20.0
+v1,synth_2500_high_carbs,2500kcal / high carbs,synthetic,lunch_snack,2500.0,102.0,408.2,51.0,1654,98,199,52,-33.8,-3.9,-51.2,2.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1650.86,17,,,True,31.7,5.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,full_day,2500.0,76.5,481.6,29.7,1854,93,249,54,-25.8,21.6,-48.3,81.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1218.25,17,,,True,33.2,7.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,lunch_snack_dinner,2500.0,76.5,481.6,29.7,1632,76,232,45,-34.7,-0.7,-51.8,51.5,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1416.99,17,,,True,37.7,7.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,lunch_dinner,2500.0,76.5,481.6,29.7,2564,104,437,45,2.6,35.9,-9.3,51.5,relaxed_culinary,0.15,relaxed,0.5,1235.87,14,,,True,54.9,16.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,lunch_only,2500.0,76.5,481.6,29.7,2442,102,442,30,-2.3,33.3,-8.2,1.0,single_meal_kcal_only,0.08,strict,1.0,96.2,1,,,True,81.5,19.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,dinner_only,2500.0,76.5,481.6,29.7,2489,62,490,31,-0.4,-19.0,1.7,4.4,single_meal_kcal_only,0.08,strict,1.0,245.19,1,,,True,84.8,24.0
+v1,synth_2500_extremely_high_carbs,2500kcal / extremely high carbs,synthetic,lunch_snack,2500.0,76.5,481.6,29.7,917,75,81,32,-63.3,-2.0,-83.2,7.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1123.24,17,,,True,45.5,2.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,full_day,3000.0,152.0,384.2,95.0,2993,152,382,95,-0.2,0.0,-0.6,0.0,strict_tight,0.08,strict,1.0,293.74,1,,,True,26.5,9.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,lunch_snack_dinner,3000.0,152.0,384.2,95.0,3007,152,384,96,0.2,0.0,-0.1,1.1,strict_tight,0.08,strict,1.0,172.54,1,,,True,29.3,10.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,lunch_dinner,3000.0,152.0,384.2,95.0,2997,152,384,95,-0.1,0.0,-0.1,0.0,strict_tight,0.08,strict,1.0,168.46,1,,,True,23.5,8.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,lunch_only,3000.0,152.0,384.2,95.0,2995,150,384,95,-0.2,-1.3,-0.1,0.0,single_meal_kcal_only,0.08,strict,1.0,95.84,1,,,True,52.4,15.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,dinner_only,3000.0,152.0,384.2,95.0,2966,145,376,98,-1.1,-4.6,-2.1,3.2,single_meal_kcal_only,0.08,strict,1.0,69.69,1,,,True,53.4,18.0
+v1,synth_3000_balanced,3000kcal / balanced,synthetic,lunch_snack,3000.0,152.0,384.2,95.0,2970,159,346,105,-1.0,4.6,-9.9,10.5,strict_tight,0.08,strict,1.0,126.62,1,,,True,24.7,7.0
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,full_day,3000.0,104.5,431.8,95.0,3024,109,434,95,0.8,4.3,0.5,0.0,strict_tight,0.08,strict,0.5,307.56,2,,,True,33.5,11.5
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,lunch_snack_dinner,3000.0,104.5,431.8,95.0,3032,132,428,88,1.1,26.3,-0.9,-7.4,strict_tight,0.08,strict,1.0,163.06,1,,,True,34.8,12.0
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,lunch_dinner,3000.0,104.5,431.8,95.0,2940,124,399,94,-2.0,18.7,-7.6,-1.1,strict_tight,0.08,strict,0.5,263.66,2,,,True,37.8,13.0
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,lunch_only,3000.0,104.5,431.8,95.0,3041,118,427,96,1.4,12.9,-1.1,1.1,single_meal_kcal_only,0.08,strict,1.0,68.03,1,,,True,45.0,16.0
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,dinner_only,3000.0,104.5,431.8,95.0,3008,104,434,95,0.3,-0.5,0.5,0.0,single_meal_kcal_only,0.08,strict,1.0,103.5,1,,,True,39.8,14.0
+v1,synth_3000_low_protein,3000kcal / low protein,synthetic,lunch_snack,3000.0,104.5,431.8,95.0,2559,120,306,95,-14.7,14.8,-29.1,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1134.73,17,,,True,35.0,7.0
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,full_day,3000.0,57.0,479.2,95.0,2923,115,400,96,-2.6,101.8,-16.5,1.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1333.36,17,,,True,35.0,8.0
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,lunch_snack_dinner,3000.0,57.0,479.2,95.0,2945,98,442,87,-1.8,71.9,-7.8,-8.4,relaxed_culinary,0.15,relaxed,0.5,1137.67,14,,,True,34.7,11.5
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,lunch_dinner,3000.0,57.0,479.2,95.0,1896,89,219,74,-36.8,56.1,-54.3,-22.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1161.66,17,,,True,45.1,10.0
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,lunch_only,3000.0,57.0,479.2,95.0,2832,112,383,95,-5.6,96.5,-20.1,0.0,single_meal_kcal_only,0.08,strict,1.0,79.5,1,,,True,48.3,16.0
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,dinner_only,3000.0,57.0,479.2,95.0,3029,86,478,86,1.0,50.9,-0.3,-9.5,single_meal_kcal_only,0.08,strict,1.0,71.88,1,,,True,45.1,16.0
+v1,synth_3000_extremely_low_protein,3000kcal / extremely low protein,synthetic,lunch_snack,3000.0,57.0,479.2,95.0,1119,56,127,43,-62.7,-1.8,-73.5,-54.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1196.95,17,,,True,34.3,3.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,full_day,3000.0,190.0,346.2,95.0,2993,190,346,95,-0.2,0.0,-0.1,0.0,strict_tight,0.08,strict,1.0,234.7,1,,,True,29.8,7.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,lunch_snack_dinner,3000.0,190.0,346.2,95.0,3006,188,350,95,0.2,-1.1,1.1,0.0,strict_tight,0.08,strict,1.0,192.76,1,,,True,27.8,7.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,lunch_dinner,3000.0,190.0,346.2,95.0,2994,190,344,95,-0.2,0.0,-0.6,0.0,strict_tight,0.08,strict,1.0,178.94,1,,,True,27.9,8.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,lunch_only,3000.0,190.0,346.2,95.0,3000,190,347,94,0.0,0.0,0.2,-1.1,single_meal_kcal_only,0.08,strict,1.0,104.95,1,,,True,34.9,10.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,dinner_only,3000.0,190.0,346.2,95.0,2878,143,357,98,-4.1,-24.7,3.1,3.2,single_meal_kcal_only,0.08,strict,1.0,71.65,1,,,True,52.0,17.0
+v1,synth_3000_high_protein,3000kcal / high protein,synthetic,lunch_snack,3000.0,190.0,346.2,95.0,2992,188,346,95,-0.3,-1.1,-0.1,0.0,strict_tight,0.08,strict,1.0,120.39,1,,,True,35.0,10.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,full_day,3000.0,247.0,289.2,95.0,2933,227,290,96,-2.2,-8.1,0.3,1.1,strict_tight,0.08,strict,1.0,152.87,1,,,True,34.8,8.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,lunch_snack_dinner,3000.0,247.0,289.2,95.0,2951,219,296,99,-1.6,-11.3,2.4,4.2,strict_tight,0.08,strict,1.0,144.29,1,,,True,35.4,9.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,lunch_dinner,3000.0,247.0,289.2,95.0,2908,219,291,96,-3.1,-11.3,0.6,1.1,strict_tight,0.08,strict,1.0,141.25,1,,,True,35.9,9.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,lunch_only,3000.0,247.0,289.2,95.0,2993,241,292,96,-0.2,-2.4,1.0,1.1,single_meal_kcal_only,0.08,strict,1.0,109.01,1,,,True,41.8,11.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,dinner_only,3000.0,247.0,289.2,95.0,2768,152,299,108,-7.7,-38.5,3.4,13.7,single_meal_kcal_only,0.08,strict,1.0,83.13,1,,,True,49.9,14.0
+v1,synth_3000_extremely_high_protein,3000kcal / extremely high protein,synthetic,lunch_snack,3000.0,247.0,289.2,95.0,2964,237,289,96,-1.2,-4.0,-0.1,1.1,strict_tight,0.08,strict,1.0,77.87,1,,,True,42.2,9.0
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,full_day,3000.0,152.0,491.1,47.5,3038,135,493,58,1.3,-11.2,0.4,22.1,strict_tight,0.08,strict,0.5,220.21,2,,,True,47.8,16.5
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,lunch_snack_dinner,3000.0,152.0,491.1,47.5,2996,151,468,58,-0.1,-0.7,-4.7,22.1,strict_tight,0.08,strict,0.5,198.81,2,,,True,51.4,17.5
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,lunch_dinner,3000.0,152.0,491.1,47.5,2898,133,457,60,-3.4,-12.5,-6.9,26.3,strict_tight,0.08,strict,1.0,140.73,1,,,True,45.5,15.0
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,lunch_only,3000.0,152.0,491.1,47.5,3017,145,502,47,0.6,-4.6,2.2,-1.1,single_meal_kcal_only,0.08,strict,1.0,138.5,1,,,True,76.3,22.0
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,dinner_only,3000.0,152.0,491.1,47.5,2815,88,510,47,-6.2,-42.1,3.8,-1.1,single_meal_kcal_only,0.08,strict,1.0,75.18,1,,,True,78.1,25.0
+v1,synth_3000_low_fat,3000kcal / low fat,synthetic,lunch_snack,3000.0,152.0,491.1,47.5,1815,152,168,60,-39.5,0.0,-65.8,26.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1164.64,17,,,True,46.0,5.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,full_day,3000.0,152.0,544.6,23.8,3311,152,507,75,10.4,0.0,-6.9,215.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1301.37,17,,,True,45.2,17.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,lunch_snack_dinner,3000.0,152.0,544.6,23.8,3289,140,533,66,9.6,-7.9,-2.1,177.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1175.51,17,,,True,48.1,18.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,lunch_dinner,3000.0,152.0,544.6,23.8,3249,140,536,61,8.3,-7.9,-1.6,156.3,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1147.15,17,,,True,51.4,19.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,lunch_only,3000.0,152.0,544.6,23.8,2908,118,544,29,-3.1,-22.4,-0.1,21.8,single_meal_kcal_only,0.08,strict,1.0,69.86,1,,,True,86.4,24.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,dinner_only,3000.0,152.0,544.6,23.8,2771,66,567,27,-7.6,-56.6,4.1,13.4,single_meal_kcal_only,0.08,strict,1.0,70.36,1,,,True,88.9,28.0
+v1,synth_3000_extremely_low_fat,3000kcal / extremely low fat,synthetic,lunch_snack,3000.0,152.0,544.6,23.8,708,45,79,24,-76.4,-70.4,-85.5,0.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1173.66,17,,,True,29.6,2.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,full_day,3000.0,152.0,256.0,152.0,2999,153,256,152,-0.0,0.7,0.0,0.0,strict_tight,0.08,strict,1.0,383.47,1,,,True,24.5,12.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,lunch_snack_dinner,3000.0,152.0,256.0,152.0,2973,163,261,142,-0.9,7.2,2.0,-6.6,strict_tight,0.08,strict,1.0,195.16,1,,,True,21.5,5.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,lunch_dinner,3000.0,152.0,256.0,152.0,3072,180,258,147,2.4,18.4,0.8,-3.3,strict_tight,0.08,strict,1.0,145.25,1,,,True,22.3,8.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,lunch_only,3000.0,152.0,256.0,152.0,3007,152,257,152,0.2,0.0,0.4,0.0,single_meal_kcal_only,0.08,strict,1.0,101.22,1,,,True,43.6,19.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,dinner_only,3000.0,152.0,256.0,152.0,3007,153,256,153,0.2,0.7,0.0,0.7,single_meal_kcal_only,0.08,strict,1.0,95.13,1,,,True,35.7,11.0
+v1,synth_3000_high_fat,3000kcal / high fat,synthetic,lunch_snack,3000.0,152.0,256.0,152.0,3069,189,274,135,2.3,24.3,7.0,-11.2,strict_relaxed_tol,0.15,strict,1.0,388.28,5,,,True,27.2,10.0
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,full_day,3000.0,152.0,127.7,209.0,2897,159,129,194,-3.4,4.6,1.0,-7.2,strict_tight,0.08,strict,0.5,297.12,2,,,True,37.0,17.5
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,lunch_snack_dinner,3000.0,152.0,127.7,209.0,2197,160,129,116,-26.8,5.3,1.0,-44.5,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1192.39,17,,,True,34.9,5.0
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,lunch_dinner,3000.0,152.0,127.7,209.0,2146,154,128,113,-28.5,1.3,0.2,-45.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1177.05,17,,,True,28.6,5.0
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,lunch_only,3000.0,152.0,127.7,209.0,2978,144,128,210,-0.7,-5.3,0.2,0.5,single_meal_kcal_only,0.08,strict,1.0,69.01,1,,,True,85.8,37.0
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,dinner_only,3000.0,152.0,127.7,209.0,3016,150,128,212,0.5,-1.3,0.2,1.4,single_meal_kcal_only,0.08,strict,1.0,100.82,1,,,True,71.0,31.0
+v1,synth_3000_extremely_high_fat,3000kcal / extremely high fat,synthetic,lunch_snack,3000.0,152.0,127.7,209.0,1836,153,127,80,-38.8,0.7,-0.5,-61.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1271.23,17,,,True,45.5,5.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,full_day,3000.0,190.0,260.8,133.0,3000,190,261,133,0.0,0.0,0.1,0.0,strict_tight,0.08,strict,1.0,546.6,1,,,True,21.3,5.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,lunch_snack_dinner,3000.0,190.0,260.8,133.0,2993,190,260,133,-0.2,0.0,-0.3,0.0,strict_tight,0.08,strict,1.0,258.24,1,,,True,20.9,5.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,lunch_dinner,3000.0,190.0,260.8,133.0,3015,191,261,134,0.5,0.5,0.1,0.8,strict_tight,0.08,strict,1.0,189.39,1,,,True,30.6,6.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,lunch_only,3000.0,190.0,260.8,133.0,2979,190,261,131,-0.7,0.0,0.1,-1.5,single_meal_kcal_only,0.08,strict,1.0,106.03,1,,,True,43.0,15.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,dinner_only,3000.0,190.0,260.8,133.0,3053,189,262,139,1.8,-0.5,0.5,4.5,single_meal_kcal_only,0.08,strict,1.0,63.97,1,,,True,60.4,12.0
+v1,synth_3000_low_carbs,3000kcal / low carbs,synthetic,lunch_snack,3000.0,190.0,260.8,133.0,2984,189,264,131,-0.5,-0.5,1.2,-1.5,strict_tight,0.08,strict,1.0,129.07,1,,,True,28.0,10.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,full_day,3000.0,228.0,137.2,171.0,2978,217,144,171,-0.7,-4.8,5.0,0.0,strict_tight,0.08,strict,1.0,157.17,1,,,True,25.8,11.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,lunch_snack_dinner,3000.0,228.0,137.2,171.0,3012,231,153,164,0.4,1.3,11.5,-4.1,strict_tight,0.08,strict,1.0,135.83,1,,,True,35.7,7.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,lunch_dinner,3000.0,228.0,137.2,171.0,3022,234,140,169,0.7,2.6,2.0,-1.2,strict_tight,0.08,strict,1.0,136.23,1,,,True,35.6,7.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,lunch_only,3000.0,228.0,137.2,171.0,2975,228,138,168,-0.8,0.0,0.6,-1.8,single_meal_kcal_only,0.08,strict,1.0,110.02,1,,,True,51.1,22.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,dinner_only,3000.0,228.0,137.2,171.0,2983,221,139,172,-0.6,-3.1,1.3,0.6,single_meal_kcal_only,0.08,strict,1.0,65.09,1,,,True,77.2,15.0
+v1,synth_3000_extremely_low_carbs,3000kcal / extremely low carbs,synthetic,lunch_snack,3000.0,228.0,137.2,171.0,2446,222,151,106,-18.5,-2.6,10.1,-38.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1149.95,17,,,True,51.2,7.0
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,full_day,3000.0,114.0,507.8,57.0,2853,117,466,58,-4.9,2.6,-8.2,1.8,strict_tight,0.08,strict,0.5,212.99,2,,,True,47.8,15.5
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,lunch_snack_dinner,3000.0,114.0,507.8,57.0,3101,136,491,66,3.4,19.3,-3.3,15.8,strict_tight,0.08,strict,1.0,77.73,1,,,True,45.4,16.0
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,lunch_dinner,3000.0,114.0,507.8,57.0,2986,134,477,60,-0.5,17.5,-6.1,5.3,strict_tight,0.08,strict,1.0,74.96,1,,,True,47.2,16.0
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,lunch_only,3000.0,114.0,507.8,57.0,3002,116,507,57,0.1,1.8,-0.2,0.0,single_meal_kcal_only,0.08,strict,1.0,66.22,1,,,True,59.3,17.0
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,dinner_only,3000.0,114.0,507.8,57.0,2968,102,511,58,-1.1,-10.5,0.6,1.8,single_meal_kcal_only,0.08,strict,1.0,65.2,1,,,True,74.1,25.0
+v1,synth_3000_high_carbs,3000kcal / high carbs,synthetic,lunch_snack,3000.0,114.0,507.8,57.0,1782,101,216,57,-40.6,-11.4,-57.5,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1118.07,17,,,True,29.4,5.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,full_day,3000.0,85.5,589.7,33.2,1854,93,249,54,-38.2,8.8,-57.8,62.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1151.65,17,,,True,33.2,7.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,lunch_snack_dinner,3000.0,85.5,589.7,33.2,1806,80,264,48,-39.8,-6.4,-55.2,44.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1239.66,17,,,True,39.0,8.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,lunch_dinner,3000.0,85.5,589.7,33.2,3130,131,532,53,4.3,53.2,-9.8,59.6,strict_relaxed_tol,0.2,strict,0.5,633.3,8,,,True,53.4,19.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,lunch_only,3000.0,85.5,589.7,33.2,3070,122,572,33,2.3,42.7,-3.0,-0.6,single_meal_kcal_only,0.08,strict,1.0,70.01,1,,,True,85.3,25.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,dinner_only,3000.0,85.5,589.7,33.2,2942,71,591,33,-1.9,-17.0,0.2,-0.6,single_meal_kcal_only,0.08,strict,1.0,74.1,1,,,True,83.7,28.0
+v1,synth_3000_extremely_high_carbs,3000kcal / extremely high carbs,synthetic,lunch_snack,3000.0,85.5,589.7,33.2,1002,78,93,35,-66.6,-8.8,-84.2,5.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1205.31,17,,,True,41.6,2.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,full_day,3500.0,176.0,451.5,110.0,3499,176,452,110,-0.0,0.0,0.1,0.0,strict_tight,0.08,strict,1.0,207.06,1,,,True,17.6,7.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,lunch_snack_dinner,3500.0,176.0,451.5,110.0,3500,176,452,110,0.0,0.0,0.1,0.0,strict_tight,0.08,strict,1.0,205.8,1,,,True,17.9,7.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,lunch_dinner,3500.0,176.0,451.5,110.0,3504,178,450,110,0.1,1.1,-0.3,0.0,strict_tight,0.08,strict,1.0,211.7,1,,,True,30.1,12.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,lunch_only,3500.0,176.0,451.5,110.0,3498,180,452,108,-0.1,2.3,0.1,-1.8,single_meal_kcal_only,0.08,strict,1.0,112.14,1,,,True,39.1,16.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,dinner_only,3500.0,176.0,451.5,110.0,3472,165,456,110,-0.8,-6.2,1.0,0.0,single_meal_kcal_only,0.08,strict,1.0,68.68,1,,,True,55.8,22.0
+v1,synth_3500_balanced,3500kcal / balanced,synthetic,lunch_snack,3500.0,176.0,451.5,110.0,3478,200,420,111,-0.6,13.6,-7.0,0.9,strict_tight,0.08,strict,1.0,120.52,1,,,True,30.1,10.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,full_day,3500.0,121.0,506.5,110.0,3401,154,458,106,-2.8,27.3,-9.6,-3.6,strict_tight,0.08,strict,1.0,166.63,1,,,True,31.0,12.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,lunch_snack_dinner,3500.0,121.0,506.5,110.0,3602,147,506,110,2.9,21.5,-0.1,0.0,strict_tight,0.08,strict,1.0,157.42,1,,,True,34.2,14.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,lunch_dinner,3500.0,121.0,506.5,110.0,3564,153,507,103,1.8,26.4,0.1,-6.4,strict_tight,0.08,strict,1.0,129.3,1,,,True,34.6,14.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,lunch_only,3500.0,121.0,506.5,110.0,3501,135,498,108,0.0,11.6,-1.7,-1.8,single_meal_kcal_only,0.08,strict,1.0,138.54,1,,,True,39.0,16.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,dinner_only,3500.0,121.0,506.5,110.0,3511,119,512,110,0.3,-1.7,1.1,0.0,single_meal_kcal_only,0.08,strict,1.0,165.79,1,,,True,52.6,21.0
+v1,synth_3500_low_protein,3500kcal / low protein,synthetic,lunch_snack,3500.0,121.0,506.5,110.0,2628,123,309,100,-24.9,1.7,-39.0,-9.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1471.13,17,,,True,34.1,7.0
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,full_day,3500.0,66.0,561.5,110.0,3368,113,508,98,-3.8,71.2,-9.5,-10.9,relaxed_culinary,0.15,relaxed,0.5,1014.56,14,,,True,34.2,12.5
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,lunch_snack_dinner,3500.0,66.0,561.5,110.0,3391,110,508,102,-3.1,66.7,-9.5,-7.3,relaxed_culinary,0.15,relaxed,0.5,1057.28,14,,,True,33.9,11.0
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,lunch_dinner,3500.0,66.0,561.5,110.0,1896,89,219,74,-45.8,34.8,-61.0,-32.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1276.35,17,,,True,45.1,10.0
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,lunch_only,3500.0,66.0,561.5,110.0,3493,134,496,108,-0.2,103.0,-11.7,-1.8,single_meal_kcal_only,0.08,strict,1.0,70.51,1,,,True,39.1,16.0
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,dinner_only,3500.0,66.0,561.5,110.0,3569,102,547,108,2.0,54.5,-2.6,-1.8,single_meal_kcal_only,0.08,strict,1.0,76.48,1,,,True,41.9,17.0
+v1,synth_3500_extremely_low_protein,3500kcal / extremely low protein,synthetic,lunch_snack,3500.0,66.0,561.5,110.0,2616,122,306,100,-25.3,84.8,-45.5,-9.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1106.64,17,,,True,34.2,7.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,full_day,3500.0,220.0,407.5,110.0,3498,220,408,110,-0.1,0.0,0.1,0.0,strict_tight,0.08,strict,1.0,413.02,1,,,True,21.9,6.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,lunch_snack_dinner,3500.0,220.0,407.5,110.0,3497,220,405,111,-0.1,0.0,-0.6,0.9,strict_tight,0.08,strict,1.0,192.07,1,,,True,29.8,11.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,lunch_dinner,3500.0,220.0,407.5,110.0,3495,219,409,109,-0.1,-0.5,0.4,-0.9,strict_tight,0.08,strict,1.0,294.51,1,,,True,27.7,11.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,lunch_only,3500.0,220.0,407.5,110.0,3507,225,408,108,0.2,2.3,0.1,-1.8,single_meal_kcal_only,0.08,strict,1.0,97.56,1,,,True,39.0,16.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,dinner_only,3500.0,220.0,407.5,110.0,3293,162,409,112,-5.9,-26.4,0.4,1.8,single_meal_kcal_only,0.08,strict,1.0,80.72,1,,,True,50.8,19.0
+v1,synth_3500_high_protein,3500kcal / high protein,synthetic,lunch_snack,3500.0,220.0,407.5,110.0,3523,229,407,109,0.7,4.1,-0.1,-0.9,strict_tight,0.08,strict,1.0,171.45,1,,,True,35.7,12.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,full_day,3500.0,286.0,341.5,110.0,3529,281,342,115,0.8,-1.7,0.1,4.5,strict_tight,0.08,strict,1.0,208.56,1,,,True,25.3,8.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,lunch_snack_dinner,3500.0,286.0,341.5,110.0,3467,253,342,121,-0.9,-11.5,0.1,10.0,strict_tight,0.08,strict,1.0,136.13,1,,,True,30.1,9.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,lunch_dinner,3500.0,286.0,341.5,110.0,3548,272,342,122,1.4,-4.9,0.1,10.9,strict_tight,0.08,strict,1.0,116.11,1,,,True,35.3,10.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,lunch_only,3500.0,286.0,341.5,110.0,3488,281,342,111,-0.3,-1.7,0.1,0.9,single_meal_kcal_only,0.08,strict,1.0,91.55,1,,,True,41.9,13.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,dinner_only,3500.0,286.0,341.5,110.0,3251,182,340,129,-7.1,-36.4,-0.4,17.3,single_meal_kcal_only,0.08,strict,1.0,68.92,1,,,True,51.9,16.0
+v1,synth_3500_extremely_high_protein,3500kcal / extremely high protein,synthetic,lunch_snack,3500.0,286.0,341.5,110.0,3464,276,340,111,-1.0,-3.5,-0.4,0.9,strict_tight,0.08,strict,1.0,77.24,1,,,True,42.2,10.0
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,full_day,3500.0,176.0,575.2,55.0,3603,172,575,68,2.9,-2.3,-0.0,23.6,strict_tight,0.08,strict,0.5,226.24,2,,,True,50.1,20.5
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,lunch_snack_dinner,3500.0,176.0,575.2,55.0,3532,164,576,64,0.9,-6.8,0.1,16.4,strict_tight,0.08,strict,0.5,242.44,2,,,True,52.3,21.0
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,lunch_dinner,3500.0,176.0,575.2,55.0,3370,168,518,69,-3.7,-4.5,-9.9,25.5,strict_tight,0.08,strict,1.0,144.51,1,,,True,47.0,18.0
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,lunch_only,3500.0,176.0,575.2,55.0,3477,182,563,55,-0.7,3.4,-2.1,0.0,single_meal_kcal_only,0.08,strict,1.0,97.58,1,,,True,69.3,23.0
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,dinner_only,3500.0,176.0,575.2,55.0,3232,107,570,59,-7.7,-39.2,-0.9,7.3,single_meal_kcal_only,0.08,strict,1.0,73.54,1,,,True,76.2,28.0
+v1,synth_3500_low_fat,3500kcal / low fat,synthetic,lunch_snack,3500.0,176.0,575.2,55.0,2667,180,309,79,-23.8,2.3,-46.3,43.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1078.05,17,,,True,39.3,10.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,full_day,3500.0,176.0,637.1,27.5,3599,159,569,76,2.8,-9.7,-10.7,176.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1174.45,17,,,True,46.4,19.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,lunch_snack_dinner,3500.0,176.0,637.1,27.5,3377,142,553,67,-3.5,-19.3,-13.2,143.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1181.8,17,,,True,49.5,19.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,lunch_dinner,3500.0,176.0,637.1,27.5,3249,140,536,61,-7.2,-20.5,-15.9,121.8,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1149.96,17,,,True,51.4,19.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,lunch_only,3500.0,176.0,637.1,27.5,3327,131,631,31,-4.9,-25.6,-1.0,12.7,single_meal_kcal_only,0.08,strict,1.0,60.87,1,,,True,88.1,28.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,dinner_only,3500.0,176.0,637.1,27.5,3299,76,685,29,-5.7,-56.8,7.5,5.5,single_meal_kcal_only,0.08,strict,1.0,59.79,1,,,True,90.7,34.0
+v1,synth_3500_extremely_low_fat,3500kcal / extremely low fat,synthetic,lunch_snack,3500.0,176.0,637.1,27.5,917,75,81,32,-73.8,-57.4,-87.3,16.4,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1078.68,17,,,True,45.5,2.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,full_day,3500.0,176.0,303.0,176.0,3498,176,303,176,-0.1,0.0,0.0,0.0,strict_tight,0.08,strict,1.0,362.04,1,,,True,24.5,14.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,lunch_snack_dinner,3500.0,176.0,303.0,176.0,3494,186,305,170,-0.2,5.7,0.7,-3.4,strict_tight,0.08,strict,1.0,90.08,1,,,True,22.0,7.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,lunch_dinner,3500.0,176.0,303.0,176.0,3579,205,302,172,2.3,16.5,-0.3,-2.3,strict_tight,0.08,strict,1.0,166.21,1,,,True,23.9,10.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,lunch_only,3500.0,176.0,303.0,176.0,3496,176,303,176,-0.1,0.0,0.0,0.0,single_meal_kcal_only,0.08,strict,1.0,94.22,1,,,True,53.3,27.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,dinner_only,3500.0,176.0,303.0,176.0,3488,176,303,175,-0.3,0.0,0.0,-0.6,single_meal_kcal_only,0.08,strict,1.0,83.48,1,,,True,35.2,13.0
+v1,synth_3500_high_fat,3500kcal / high fat,synthetic,lunch_snack,3500.0,176.0,303.0,176.0,3624,203,351,156,3.5,15.3,15.8,-11.4,strict_relaxed_tol,0.15,strict,1.0,332.89,5,,,True,24.7,10.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,full_day,3500.0,176.0,154.5,242.0,3498,205,172,221,-0.1,16.5,11.3,-8.7,strict_tight,0.08,strict,1.0,140.25,1,,,True,35.0,20.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,lunch_snack_dinner,3500.0,176.0,154.5,242.0,2577,177,153,140,-26.4,0.6,-1.0,-42.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1099.36,17,,,True,29.8,5.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,lunch_dinner,3500.0,176.0,154.5,242.0,2608,178,158,141,-25.5,1.1,2.3,-41.7,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1090.08,17,,,True,29.4,5.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,lunch_only,3500.0,176.0,154.5,242.0,3475,183,155,236,-0.7,4.0,0.3,-2.5,single_meal_kcal_only,0.08,strict,1.0,65.51,1,,,True,77.5,39.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,dinner_only,3500.0,176.0,154.5,242.0,3534,177,158,244,1.0,0.6,2.3,0.8,single_meal_kcal_only,0.08,strict,1.0,92.2,1,,,True,68.4,35.0
+v1,synth_3500_extremely_high_fat,3500kcal / extremely high fat,synthetic,lunch_snack,3500.0,176.0,154.5,242.0,2246,188,156,97,-35.8,6.8,1.0,-59.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1049.59,17,,,True,46.5,5.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,full_day,3500.0,220.0,308.5,154.0,3501,220,309,154,0.0,0.0,0.2,0.0,strict_tight,0.08,strict,1.0,971.57,1,,,True,14.6,5.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,lunch_snack_dinner,3500.0,220.0,308.5,154.0,3496,219,309,154,-0.1,-0.5,0.2,0.0,strict_tight,0.08,strict,1.0,235.95,1,,,True,22.0,5.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,lunch_dinner,3500.0,220.0,308.5,154.0,3502,221,308,154,0.1,0.5,-0.2,0.0,strict_tight,0.08,strict,1.0,196.85,1,,,True,24.4,10.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,lunch_only,3500.0,220.0,308.5,154.0,3523,219,310,156,0.7,-0.5,0.5,1.3,single_meal_kcal_only,0.08,strict,1.0,100.47,1,,,True,39.2,20.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,dinner_only,3500.0,220.0,308.5,154.0,3536,220,303,160,1.0,0.0,-1.8,3.9,single_meal_kcal_only,0.08,strict,1.0,62.93,1,,,True,60.8,14.0
+v1,synth_3500_low_carbs,3500kcal / low carbs,synthetic,lunch_snack,3500.0,220.0,308.5,154.0,3534,226,312,153,1.0,2.7,1.1,-0.6,strict_tight,0.08,strict,1.0,118.43,1,,,True,29.5,10.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,full_day,3500.0,264.0,165.5,198.0,3524,262,168,200,0.7,-0.8,1.5,1.0,strict_tight,0.08,strict,1.0,183.55,1,,,True,34.8,10.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,lunch_snack_dinner,3500.0,264.0,165.5,198.0,3473,263,169,194,-0.8,-0.4,2.1,-2.0,strict_tight,0.08,strict,1.0,141.21,1,,,True,39.8,9.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,lunch_dinner,3500.0,264.0,165.5,198.0,3500,266,166,197,0.0,0.8,0.3,-0.5,strict_tight,0.08,strict,1.0,129.34,1,,,True,39.5,9.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,lunch_only,3500.0,264.0,165.5,198.0,3530,268,165,200,0.9,1.5,-0.3,1.0,single_meal_kcal_only,0.08,strict,1.0,96.97,1,,,True,46.9,24.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,dinner_only,3500.0,264.0,165.5,198.0,3534,263,169,201,1.0,-0.4,2.1,1.5,single_meal_kcal_only,0.08,strict,1.0,62.7,1,,,True,78.2,18.0
+v1,synth_3500_extremely_low_carbs,3500kcal / extremely low carbs,synthetic,lunch_snack,3500.0,264.0,165.5,198.0,2740,255,166,117,-21.7,-3.4,0.3,-40.9,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1093.63,17,,,True,53.3,7.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,full_day,3500.0,132.0,594.5,66.0,3593,160,561,79,2.7,21.2,-5.6,19.7,strict_tight,0.08,strict,1.0,66.43,1,,,True,44.1,18.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,lunch_snack_dinner,3500.0,132.0,594.5,66.0,3375,143,545,69,-3.6,8.3,-8.3,4.5,strict_tight,0.08,strict,1.0,65.29,1,,,True,46.9,18.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,lunch_dinner,3500.0,132.0,594.5,66.0,3420,144,560,67,-2.3,9.1,-5.8,1.5,strict_tight,0.08,strict,1.0,124.61,1,,,True,48.9,19.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,lunch_only,3500.0,132.0,594.5,66.0,3498,132,592,67,-0.1,0.0,-0.4,1.5,single_meal_kcal_only,0.08,strict,1.0,98.83,1,,,True,59.9,20.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,dinner_only,3500.0,132.0,594.5,66.0,3474,122,590,69,-0.7,-7.6,-0.8,4.5,single_meal_kcal_only,0.08,strict,1.0,62.08,1,,,True,73.5,29.0
+v1,synth_3500_high_carbs,3500kcal / high carbs,synthetic,lunch_snack,3500.0,132.0,594.5,66.0,2106,137,242,66,-39.8,3.8,-59.3,0.0,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1069.24,17,,,True,34.8,7.0
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,full_day,3500.0,99.0,689.4,38.5,2028,97,280,58,-42.1,-2.0,-59.4,50.6,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1182.8,17,,,True,34.7,8.0
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,lunch_snack_dinner,3500.0,99.0,689.4,38.5,3583,140,621,60,2.4,41.4,-9.9,55.8,relaxed_culinary,0.2,relaxed,0.5,1071.45,16,,,True,55.2,22.5
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,lunch_dinner,3500.0,99.0,689.4,38.5,3604,142,621,62,3.0,43.4,-9.9,61.0,strict_relaxed_tol,0.2,strict,0.5,614.67,8,,,True,53.7,22.0
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,lunch_only,3500.0,99.0,689.4,38.5,3574,137,671,38,2.1,38.4,-2.7,-1.3,single_meal_kcal_only,0.08,strict,1.0,69.45,1,,,True,84.9,29.0
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,dinner_only,3500.0,99.0,689.4,38.5,3453,90,686,39,-1.3,-9.1,-0.5,1.3,single_meal_kcal_only,0.08,strict,1.0,63.88,1,,,True,86.6,34.0
+v1,synth_3500_extremely_high_carbs,3500kcal / extremely high carbs,synthetic,lunch_snack,3500.0,99.0,689.4,38.5,1398,91,163,42,-60.1,-8.1,-76.4,9.1,best_effort_lp,BEST_EFFORT_LP,relaxed,1.0,1061.51,17,,,True,37.5,5.0

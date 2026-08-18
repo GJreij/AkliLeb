@@ -196,13 +196,29 @@ def apply_changes_and_optimize(
 
     # Weekly carry-over: accrue (actual - target) across days IN ORDER as we
     # walk the week, so a re-optimized day's target reflects what happened
-    # on every earlier day this week (changed or not).
+    # on every earlier day this week (changed or not). Resets every 7
+    # calendar days from the plan's own first day — same fix as the main
+    # generate route (2026-08-18): without a reset, this accumulates
+    # across the WHOLE plan (which can span many weeks) instead of just
+    # "the week," and any persistent one-directional tendency in the
+    # actual solves eventually saturates the +/-25% clamp and never
+    # recovers for the rest of the plan.
     cumulative_deviation: Dict[str, float] = {
         "protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0, "kcal": 0.0,
     }
+    plan_start_date = None
+    current_week_index = None
 
     for day in updated_plan.get("days", []):
         date = day["date"]
+        day_date = datetime.fromisoformat(date).date()
+        if plan_start_date is None:
+            plan_start_date = day_date
+        week_index = (day_date - plan_start_date).days // 7
+        if week_index != current_week_index:
+            current_week_index = week_index
+            cumulative_deviation = {"protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0, "kcal": 0.0}
+
         day_change = changes.get(date)
 
         # 1. Skip days explicitly deleted
@@ -211,13 +227,16 @@ def apply_changes_and_optimize(
         # ✅ NEW: If this day has no change logs, keep it intact (no re-optimization)
         if not day_change:
             new_days.append(day)
-            # Still fold this day's already-solved actuals into the running
-            # cumulative deviation using whatever target it was solved
-            # against, so later re-optimized days account for it.
-            prior_target = day.get("adjusted_target") or global_daily_target
-            if prior_target and day.get("totals"):
+            # Fold this day's already-solved actuals into the running
+            # cumulative deviation, measured against the stable BASE
+            # target — never day.get("adjusted_target"). Same runaway-
+            # feedback bug as the main generate route (confirmed
+            # 2026-08-18): a carryover-inflated adjusted_target used as
+            # its own deviation baseline pins the target at the +/-25%
+            # clamp for the rest of the plan once it's ever hit.
+            if global_daily_target and day.get("totals"):
                 cumulative_deviation = update_cumulative_deviation(
-                    cumulative_deviation, prior_target, day["totals"]
+                    cumulative_deviation, global_daily_target, day["totals"]
                 )
             continue
         # 2. Track which meal types are currently excluded as "eating out"
@@ -368,8 +387,11 @@ def apply_changes_and_optimize(
         allow_under_kcal=(reduce_macros_pct > 0)
             )
 
+        # Same fix as above: measure against the stable base target, not
+        # the carryover-adjusted (and possibly eating-out-reduced) one
+        # that was actually solved against.
         cumulative_deviation = update_cumulative_deviation(
-            cumulative_deviation, adjusted_target, day_totals
+            cumulative_deviation, global_daily_target, day_totals
         )
 
         if day_totals.get("tolerance_used") == "SAFE_FALLBACK":
@@ -435,6 +457,74 @@ def apply_changes_and_optimize(
 
 
 # ------------------------------------------------------------------
+# STEP 5. Refresh plan_summary against the UPDATED days
+# ------------------------------------------------------------------
+def _refresh_summary(updated_plan: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    apply_changes_and_optimize() only rewrites updated_plan["days"] — it
+    deep-copies (and otherwise never touches) plan_summary from the
+    ORIGINAL generate_meal_plan response. Confirmed bug (2026-08-18):
+    after any swap/remove/add, plan_summary stayed frozen at whatever was
+    true BEFORE the edit.
+
+    plan_summary is a LIST of per-period objects ({start_date, end_date,
+    used, not_used} — one per contiguous weekly_menu-eligibility segment,
+    see build_week_templates' _pool_signature segmentation). Recomputed
+    here per period, scoped to that period's own date range and using
+    each period's own used+not_used union as its eligible-recipe universe
+    (recovered from the ORIGINAL entries rather than re-derived from
+    scratch, which would need the weekly_menu/eligibility context this
+    function doesn't have).
+    """
+    days = updated_plan.get("days", [])
+    original_periods = updated_plan.get("plan_summary") or []
+
+    recipe_dates_in_plan: Dict[int, set] = defaultdict(set)
+    recipe_names: Dict[int, str] = {}
+    for day in days:
+        for meal in day.get("meals", []):
+            recipe_dates_in_plan[meal["recipe_id"]].add(day["date"])
+            if meal.get("recipe_name"):
+                recipe_names[meal["recipe_id"]] = meal["recipe_name"]
+
+    new_periods = []
+    for period in original_periods:
+        start_date, end_date = period.get("start_date"), period.get("end_date")
+        original_entries = (period.get("used") or []) + (period.get("not_used") or [])
+        for entry in original_entries:
+            recipe_names.setdefault(entry["recipe_id"], entry.get("recipe_name"))
+        eligible_ids = {entry["recipe_id"] for entry in original_entries}
+
+        period_dates_in_plan = {
+            rid: {d for d in dates if start_date <= d <= end_date}
+            for rid, dates in recipe_dates_in_plan.items()
+        }
+        used_counts = {
+            rid: len(dates)
+            for rid, dates in period_dates_in_plan.items()
+            if rid in eligible_ids and dates
+        }
+        not_used_ids = eligible_ids - set(used_counts.keys())
+
+        new_periods.append({
+            "start_date": start_date,
+            "end_date": end_date,
+            "used": [
+                {"recipe_id": rid, "recipe_name": recipe_names.get(rid), "times_used": count}
+                for rid, count in sorted(used_counts.items(), key=lambda kv: -kv[1])
+            ],
+            "not_used": [
+                {"recipe_id": rid, "recipe_name": recipe_names.get(rid)}
+                for rid in sorted(not_used_ids)
+            ],
+        })
+
+    updated_plan["plan_summary"] = new_periods
+
+    return updated_plan
+
+
+# ------------------------------------------------------------------
 # STEP 4. Entry point — main function
 # ------------------------------------------------------------------
 def update_meal_plan(
@@ -446,7 +536,9 @@ def update_meal_plan(
     - Consolidates raw change logs
     - Applies them on top of the provided meal plan
     - Re-optimizes macros while persisting per-day macro targets
+    - Refreshes plan_summary so it reflects the edit
     """
     consolidated = consolidate_changes(raw_change_logs)
     updated = apply_changes_and_optimize(original_plan, consolidated)
+    updated = _refresh_summary(updated)
     return updated

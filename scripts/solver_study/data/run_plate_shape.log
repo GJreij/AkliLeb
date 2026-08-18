@@ -1,0 +1,81 @@
+528 points
+
+Done in 161.2s
+
+==========================================================================================
+A: max_serving_5x alone  (262 solved points)
+==========================================================================================
+  max single-subrecipe servings:  avg=8.3  median=7.0  p90=15.5  max=34.0
+  max single-subrecipe kcal share: avg=33.8%  median=30.7%  p90=61.0%  max=86.6%
+
+  Top 5 worst-case plates (by max single-subrecipe servings):
+
+  [3500kcal / extremely high carbs / dinner_only]  target kcal=3500 protein=99g  ->  actual kcal=3453 protein=90g
+      <== dinner     Rice Fish Broth                     servings=34.0   kcal=2991
+          dinner     Siyadiye Main                       servings=2.0    kcal=307
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3500kcal / high carbs / dinner_only]  target kcal=3500 protein=132g  ->  actual kcal=3474 protein=122g
+      <== dinner     Rice Fish Broth                     servings=29.0   kcal=2551
+          dinner     Siyadiye Main                       servings=5.0    kcal=768
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3000kcal / extremely high carbs / dinner_only]  target kcal=3000 protein=86g  ->  actual kcal=2942 protein=71g
+      <== dinner     Rice Fish Broth                     servings=28.0   kcal=2463
+          dinner     Siyadiye Main                       servings=1.0    kcal=154
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=3.0    kcal=256
+
+  [3000kcal / high carbs / dinner_only]  target kcal=3000 protein=114g  ->  actual kcal=2968 protein=102g
+      <== dinner     Rice Fish Broth                     servings=25.0   kcal=2200
+          dinner     Siyadiye Main                       servings=4.0    kcal=614
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3500kcal / extremely low protein / dinner_only]  target kcal=3500 protein=66g  ->  actual kcal=3503 protein=96g
+          dinner     Rice Fish Broth                     servings=13.0   kcal=1144
+          dinner     Siyadiye Main                       servings=1.0    kcal=154
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+      <== dinner     Akli House Salad                    servings=25.0   kcal=2136
+
+==========================================================================================
+B: max_serving_5x + macro tolerance removed  (528 solved points)
+==========================================================================================
+  max single-subrecipe servings:  avg=7.7  median=7.0  p90=15.0  max=34.0
+  max single-subrecipe kcal share: avg=31.2%  median=30.1%  p90=56.1%  max=90.7%
+
+  Top 5 worst-case plates (by max single-subrecipe servings):
+
+  [3500kcal / extremely low fat / dinner_only]  target kcal=3500 protein=176g  ->  actual kcal=3299 protein=76g
+      <== dinner     Rice Fish Broth                     servings=34.0   kcal=2991
+          dinner     Siyadiye Main                       servings=1.0    kcal=154
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3500kcal / extremely high carbs / dinner_only]  target kcal=3500 protein=99g  ->  actual kcal=3453 protein=90g
+      <== dinner     Rice Fish Broth                     servings=34.0   kcal=2991
+          dinner     Siyadiye Main                       servings=2.0    kcal=307
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3500kcal / high carbs / dinner_only]  target kcal=3500 protein=132g  ->  actual kcal=3474 protein=122g
+      <== dinner     Rice Fish Broth                     servings=29.0   kcal=2551
+          dinner     Siyadiye Main                       servings=5.0    kcal=768
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3000kcal / extremely low fat / dinner_only]  target kcal=3000 protein=152g  ->  actual kcal=2771 protein=66g
+      <== dinner     Rice Fish Broth                     servings=28.0   kcal=2463
+          dinner     Siyadiye Main                       servings=1.0    kcal=154
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=1.0    kcal=85
+
+  [3000kcal / extremely high carbs / dinner_only]  target kcal=3000 protein=86g  ->  actual kcal=2942 protein=71g
+      <== dinner     Rice Fish Broth                     servings=28.0   kcal=2463
+          dinner     Siyadiye Main                       servings=1.0    kcal=154
+          dinner     Tarator Sauce                       servings=1.0    kcal=69
+          dinner     Akli House Salad                    servings=3.0    kcal=256
+
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\plate_shape_check.json

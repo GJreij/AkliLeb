@@ -1,0 +1,25 @@
+Running version=v4 (optimize_subrecipes_v4), fixture=recipe_fixture_shipped.json: 88 diets x 6 combos = 528 points  [diagnostics skipped -- not v0]
+  50/528 (12.1s elapsed)
+  100/528 (40.1s elapsed)
+  150/528 (87.5s elapsed)
+  200/528 (130.6s elapsed)
+  250/528 (165.0s elapsed)
+  300/528 (213.0s elapsed)
+  350/528 (253.3s elapsed)
+  400/528 (283.3s elapsed)
+  450/528 (328.9s elapsed)
+  500/528 (365.2s elapsed)
+  528/528 (382.4s elapsed)
+
+Done in 382.4s (528 points, 724.2ms/point avg wall time overhead incl. diagnostics)
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\results_v4.json
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\results_v4.csv
+
+Solve-mode distribution:
+  best_effort_lp        208  (39.4%)
+  single_meal_kcal_only  176  (33.3%)
+  strict_tight           70  (13.3%)
+  strict_relaxed_tol     65  (12.3%)
+  relaxed_culinary        9  (1.7%)
+
+Culinary-cap guardrail breaches: 0/528

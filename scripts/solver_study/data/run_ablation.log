@@ -1,0 +1,26 @@
+528 points x 9 scenarios = 4752 single-attempt solves
+
+  baseline_no_ablation    106/528  (20.1%)   (none — sanity check, should match v0's strict_tight count)
+  kcal_tolerance          106/528  (20.1%)   Kcal tolerance band removed
+  macro_tolerance         360/528  (68.2%)   Protein/carbs/fat tolerance bands removed
+  breakfast_cap           106/528  (20.1%)   Breakfast kcal-share cap removed
+  snack_cap               109/528  (20.6%)   Snack kcal-share cap removed
+  dinner_lunch_cap        117/528  (22.2%)   Lunch/dinner balance cap removed
+  all_culinary_caps       120/528  (22.7%)   All culinary caps removed together
+  serving_balance         192/528  (36.4%)   Serving-balance ratio (flat 2.5x + recipe rules) removed
+  max_serving_5x          262/528  (49.6%)   Max-serving ceiling raised 5.0x
+
+Done in 712.8s
+
+=== Ranked by points UNLOCKED vs. no-ablation baseline (106/528) ===
+  macro_tolerance        + 254 points unlocked (48.1% of population)   [Protein/carbs/fat tolerance bands removed]
+  max_serving_5x         + 156 points unlocked (29.5% of population)   [Max-serving ceiling raised 5.0x]
+  serving_balance        +  86 points unlocked (16.3% of population)   [Serving-balance ratio (flat 2.5x + recipe rules) removed]
+  all_culinary_caps      +  14 points unlocked (2.7% of population)   [All culinary caps removed together]
+  dinner_lunch_cap       +  11 points unlocked (2.1% of population)   [Lunch/dinner balance cap removed]
+  snack_cap              +   3 points unlocked (0.6% of population)   [Snack kcal-share cap removed]
+  kcal_tolerance         +   0 points unlocked (0.0% of population)   [Kcal tolerance band removed]
+  breakfast_cap          +   0 points unlocked (0.0% of population)   [Breakfast kcal-share cap removed]
+
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\ablation_results.json
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\ablation_results.csv

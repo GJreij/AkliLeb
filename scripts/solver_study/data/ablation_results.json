@@ -1,0 +1,393 @@
+{
+  "n_points": 528,
+  "elapsed_s": 712.8,
+  "summary": [
+    {
+      "scenario": "baseline_no_ablation",
+      "label": "(none \u2014 sanity check, should match v0's strict_tight count)",
+      "solved": 106,
+      "total": 528,
+      "pct": 20.1,
+      "by_group": {
+        "real": {
+          "solved": 32,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 74,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 36,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 21,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 8,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "kcal_tolerance",
+      "label": "Kcal tolerance band removed",
+      "solved": 106,
+      "total": 528,
+      "pct": 20.1,
+      "by_group": {
+        "real": {
+          "solved": 32,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 74,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 36,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 21,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 8,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "macro_tolerance",
+      "label": "Protein/carbs/fat tolerance bands removed",
+      "solved": 360,
+      "total": 528,
+      "pct": 68.2,
+      "by_group": {
+        "real": {
+          "solved": 48,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 312,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 88,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 88,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 62,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 16,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 74,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 32,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "breakfast_cap",
+      "label": "Breakfast kcal-share cap removed",
+      "solved": 106,
+      "total": 528,
+      "pct": 20.1,
+      "by_group": {
+        "real": {
+          "solved": 32,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 74,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 36,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 21,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 8,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "snack_cap",
+      "label": "Snack kcal-share cap removed",
+      "solved": 109,
+      "total": 528,
+      "pct": 20.6,
+      "by_group": {
+        "real": {
+          "solved": 33,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 76,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 36,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 21,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 11,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "dinner_lunch_cap",
+      "label": "Lunch/dinner balance cap removed",
+      "solved": 117,
+      "total": 528,
+      "pct": 22.2,
+      "by_group": {
+        "real": {
+          "solved": 34,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 83,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 37,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 31,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 8,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "all_culinary_caps",
+      "label": "All culinary caps removed together",
+      "solved": 120,
+      "total": 528,
+      "pct": 22.7,
+      "by_group": {
+        "real": {
+          "solved": 35,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 85,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 37,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 31,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 27,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 3,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 11,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "serving_balance",
+      "label": "Serving-balance ratio (flat 2.5x + recipe rules) removed",
+      "solved": 192,
+      "total": 528,
+      "pct": 36.4,
+      "by_group": {
+        "real": {
+          "solved": 46,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 146,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 52,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 48,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 40,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 16,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 11,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 25,
+          "total": 88
+        }
+      }
+    },
+    {
+      "scenario": "max_serving_5x",
+      "label": "Max-serving ceiling raised 5.0x",
+      "solved": 262,
+      "total": 528,
+      "pct": 49.6,
+      "by_group": {
+        "real": {
+          "solved": 46,
+          "total": 60
+        },
+        "synthetic": {
+          "solved": 216,
+          "total": 468
+        }
+      },
+      "by_combo": {
+        "full_day": {
+          "solved": 57,
+          "total": 88
+        },
+        "lunch_snack_dinner": {
+          "solved": 49,
+          "total": 88
+        },
+        "lunch_dinner": {
+          "solved": 53,
+          "total": 88
+        },
+        "lunch_only": {
+          "solved": 27,
+          "total": 88
+        },
+        "dinner_only": {
+          "solved": 45,
+          "total": 88
+        },
+        "lunch_snack": {
+          "solved": 31,
+          "total": 88
+        }
+      }
+    }
+  ]
+}

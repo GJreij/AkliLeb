@@ -381,12 +381,18 @@ def _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target, num_meal_
 
 def _quality_score(
     rid: int, flex_stats: dict, popularity: dict, recipe_macros: dict,
-    macro_target: dict, num_days: int,
+    macro_target: dict, weekdays: List[int],
 ) -> float:
+    """weekdays is the REAL calendar weekday (0=Mon..6=Sun) for each date in
+    the range being scheduled, one entry per date, in order — NOT a bare day
+    count. Ranges longer than one week repeat weekdays (e.g. a 10-weekday
+    range is Mon..Fri twice), so popularity is averaged over the actual
+    weekday distribution instead of over range(num_days), which would look
+    up nonsense keys like (rid, 7), (rid, 8)... for any range past 5 days."""
     flex = flex_stats.get(rid, {"sub_count": 1, "sum_max": 3})
     q = FLEX_SUB_COUNT_WEIGHT * flex["sub_count"] + FLEX_SUM_MAX_WEIGHT * flex["sum_max"]
     q += macro_compat_score(rid, recipe_macros, macro_target)
-    avg_pop = sum(popularity.get((rid, wd), 0.5) for wd in range(num_days)) / num_days
+    avg_pop = sum(popularity.get((rid, wd), 0.5) for wd in weekdays) / len(weekdays)
     q += WEEKDAY_POPULARITY_WEIGHT * avg_pop
     q -= _feasibility_penalty(rid, flex_stats, recipe_macros, macro_target)
     return q
@@ -424,12 +430,24 @@ def _fair_counts(ranked_ids: List[int], num_days: int) -> Dict[int, int]:
 
 def run_holistic_week(
     meals_map: dict, eligible_by_meal_type: dict, flex_stats: dict, popularity: dict,
-    recipe_macros: dict, macro_target: dict, num_days: int = 5,
+    recipe_macros: dict, macro_target: dict, weekdays: List[int] | None = None,
 ) -> List[dict]:
     """Deterministic - no rng needed, this is a ranking + scheduling
     problem, not a random draw. meals_map values are meal_type strings
     (breakfast/lunch/dinner/snack); this assumes one meal_key per
     meal_type (matches the default meals_map used in production).
+
+    `weekdays` is the REAL calendar weekday (0=Mon..6=Sun) for each date in
+    the range being scheduled, in order — e.g. production's
+    `[d.weekday() for d in available_dates]`. Defaults to a plain Mon-Fri
+    week (`[0,1,2,3,4]`) for backward compatibility with the original
+    5-day study callers. `num_days` (the scheduling length used for
+    cooldown/spacing/quota — an ordinal position count, NOT a weekday) is
+    derived as `len(weekdays)`, so this generalizes to any range length —
+    including ranges spanning multiple calendar weeks, where weekdays
+    repeat (e.g. a 10-weekday range is Mon..Fri twice). Quality ranking
+    still needs the REAL weekday distribution (not range(num_days)) since
+    popularity is keyed by actual weekday — see `_quality_score`.
 
     Each meal_type gets its own quota (via _fair_counts) and its own
     cooldown-spaced heap, but heaps are advanced DAY-BY-DAY together (not
@@ -442,6 +460,9 @@ def run_holistic_week(
     pool-first each day (least flexibility gets first pick); a meal type
     with a bigger pool routes around whatever's already used that day.
     """
+    weekdays = weekdays if weekdays is not None else [0, 1, 2, 3, 4]
+    num_days = len(weekdays)
+
     meal_types_by_pool_size = sorted(
         set(meals_map.values()), key=lambda mt: len(eligible_by_meal_type.get(mt, []))
     )
@@ -452,7 +473,7 @@ def run_holistic_week(
         pool = eligible_by_meal_type.get(meal_type, [])
         ranked = sorted(
             pool,
-            key=lambda rid: _quality_score(rid, flex_stats, popularity, recipe_macros, macro_target, num_days),
+            key=lambda rid: _quality_score(rid, flex_stats, popularity, recipe_macros, macro_target, weekdays),
             reverse=True,
         )
         counts = _fair_counts(ranked, num_days)
@@ -536,7 +557,7 @@ def run_holistic_week(
 
         sc, single_sub = score_day(chosen_by_meal, flex_stats, recipe_macros, macro_target)
         days_out.append({
-            "day_index": day, "weekday": day, "failed": any(v is None for v in chosen_by_meal.values()),
+            "day_index": day, "weekday": weekdays[day], "failed": any(v is None for v in chosen_by_meal.values()),
             "chosen": chosen_by_meal, "score": sc, "single_sub_meals": single_sub,
         })
     return days_out
@@ -549,3 +570,151 @@ def eligible_by_meal_type_from_pool(recipes: dict) -> dict:
             if r.get(f"could_be_{mt}"):
                 out[mt].append(rid)
     return dict(out)
+
+
+# =============================================================================
+# KITCHEN BATCHING (point 1): cross-meal-type consolidation, reframed
+# around DATES rather than independent meal-type slots.
+#
+# run_holistic_week already picks a good, well-spaced recipe per
+# (date, meal_type) independently. This pass looks for opportunities to
+# let ONE recipe fill two meal-type slots on the SAME date when it's
+# eligible for both (could_be_lunch AND could_be_dinner is common in the
+# real catalog) — so the kitchen cooks one recipe instead of two that day,
+# portioned for both roles. It does NOT mean any single client gets the
+# same recipe twice in one day; that self-collision is still forbidden
+# and handled downstream, at the per-client override layer (a client
+# requesting both slots swaps one of them to a distinct alternative for
+# themselves only — everyone else still gets the batching benefit).
+# =============================================================================
+
+def population_reference_target(diets: List[dict]) -> dict:
+    """Median protein/carbs/fat/kcal across a population of diets — used
+    to gate whether a SHARED (cross-client) template choice is broadly
+    macro-reasonable. This is deliberately NOT any one client's real
+    target: a shared template can't be simultaneously optimal for every
+    client's distinct target, so this gate only screens out choices that
+    would be a poor fit for the population in general. Each individual
+    client's real fit is guaranteed downstream by the per-client repair
+    step (point 3), not by this gate."""
+    if not diets:
+        return {"protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0, "kcal": 0.0}
+
+    def _median(key):
+        vals = sorted(float(d[key]) for d in diets if d.get(key) is not None)
+        n = len(vals)
+        if n == 0:
+            return 0.0
+        mid = n // 2
+        return vals[mid] if n % 2 else (vals[mid - 1] + vals[mid]) / 2.0
+
+    return {
+        "protein_g": _median("protein_g"),
+        "carbs_g":   _median("carbs_g"),
+        "fat_g":     _median("fat_g"),
+        "kcal":      _median("kcal"),
+    }
+
+
+def apply_kitchen_batching(
+    days: List[dict],
+    meals_map: dict,
+    eligible_by_meal_type: dict,
+    recipe_macros: dict,
+    reference_target: dict,
+) -> List[dict]:
+    """Post-processes run_holistic_week's output. Returns a NEW days list
+    (input is not mutated) where some dates have had a larger-pool meal
+    type's independently-chosen recipe replaced by an already-chosen
+    recipe from a scarcer-pool meal type on the SAME date, when doing so
+    is both eligible (could_be_<type>) and doesn't compromise fit.
+
+    Per the product priority order: macro-fit is evaluated FIRST,
+    batching-reuse is preferred only when it doesn't compromise fit — so
+    the macro-compat hard filter (against `reference_target`, a
+    population-level reference — see `population_reference_target`) is a
+    real filter, not a tie-breaker. Like/dislike bias is never applied
+    here — this is shared-template construction, not a specific client's
+    view (matches the existing rule that personal preference only enters
+    at the per-client override layer).
+
+    Slots are processed scarcest-pool-first per date: the scarcest-pool
+    meal type's independent pick is always left alone (it's usually
+    already the most constrained/best-optimized choice for that date) and
+    acts as the date's "anchor" — larger-pool meal types may fold into it,
+    or into an already-consolidated pick earlier in this same date's
+    processing order. Only the FIRST already-decided candidate that
+    passes the gate is taken (greedy, not an exhaustive search over every
+    combination) — kept deliberately simple and predictable, matching the
+    same "small mechanism" philosophy as the point-3 repair step.
+    """
+    num_days = len(days)
+    meal_key_by_type = {mt: mk for mk, mt in meals_map.items()}
+    meal_types_by_pool_size = sorted(
+        set(meals_map.values()), key=lambda mt: len(eligible_by_meal_type.get(mt, []))
+    )
+
+    # Stable, ORIGINAL per-meal-type week rotation (day_index -> rid),
+    # used only to answer "does this recipe already appear elsewhere in
+    # this meal type's own rotation this week" — deliberately snapshotted
+    # before any consolidation edits, so the check is well-defined and
+    # order-independent across dates (a date's consolidation never looks
+    # at another date's consolidation results, only at its original plan).
+    original_by_type: Dict[str, Dict[int, int]] = {mt: {} for mt in meal_types_by_pool_size}
+    for day in days:
+        for mt in meal_types_by_pool_size:
+            mk = meal_key_by_type[mt]
+            rid = day["chosen"].get(mk)
+            if rid is not None:
+                original_by_type[mt][day["day_index"]] = rid
+
+    days_out = []
+    for day in days:
+        day_index = day["day_index"]
+        chosen = dict(day["chosen"])
+        batched_pairs: List[Tuple[str, str, int]] = []  # (from_meal_type, into_meal_type, rid)
+
+        decided_types: List[str] = []
+        for mt in meal_types_by_pool_size:
+            mk = meal_key_by_type[mt]
+            current_rid = chosen.get(mk)
+
+            if not decided_types:
+                # First (scarcest-pool) slot this date: stays as the anchor.
+                decided_types.append(mt)
+                continue
+
+            pool_mt = eligible_by_meal_type.get(mt, [])
+            repeats_normally_avoidable = len(pool_mt) >= num_days
+
+            reused = False
+            for other_mt in decided_types:
+                candidate_rid = chosen.get(meal_key_by_type[other_mt])
+                if candidate_rid is None or candidate_rid == current_rid:
+                    continue
+                if candidate_rid not in pool_mt:
+                    continue
+                if macro_compat_score(candidate_rid, recipe_macros, reference_target) < MACRO_COMPAT_HARD_FILTER:
+                    continue
+                if repeats_normally_avoidable:
+                    other_days_for_mt = [
+                        d for d, rid in original_by_type[mt].items()
+                        if d != day_index and rid == candidate_rid
+                    ]
+                    if other_days_for_mt:
+                        continue  # would force an otherwise-avoidable within-week repeat
+                chosen[mk] = candidate_rid
+                batched_pairs.append((other_mt, mt, candidate_rid))
+                reused = True
+                break
+
+            decided_types.append(mt)
+
+        days_out.append({
+            **day,
+            "chosen": chosen,
+            "batched_pairs": batched_pairs,
+            "distinct_recipe_count": len(set(chosen.values())),
+        })
+
+    return days_out

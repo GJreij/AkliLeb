@@ -1,0 +1,20 @@
+=== version=v2_shipped (REAL services/mealplan_service.py): 384 real historical days ===
+  50/384 (30.8s elapsed)
+  100/384 (74.0s elapsed)
+  150/384 (113.3s elapsed)
+  200/384 (152.4s elapsed)
+  250/384 (181.2s elapsed)
+  300/384 (219.8s elapsed)
+  350/384 (260.0s elapsed)
+  384/384 (284.3s elapsed)
+  Done in 284.3s
+
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\real_orders_results_shipped.json
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\real_orders_results_shipped.csv
+
+--- v2_shipped solve-mode distribution (384 days) ---
+  strict_tight          178  (46.4%)
+  best_effort_lp        102  (26.6%)
+  strict_relaxed_tol     97  (25.3%)
+  relaxed_culinary        7  (1.8%)
+  Culinary-cap breaches: 15/384

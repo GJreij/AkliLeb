@@ -1,0 +1,222 @@
+{
+  "source": "LIVE Supabase read, real production data (not simulated)",
+  "fixed_recipes": {
+    "breakfast": 41,
+    "lunch": 34,
+    "snack": 59,
+    "dinner": 50
+  },
+  "recipes_by_meal_type": {
+    "breakfast": {
+      "recipe_id": 41,
+      "recipe_name": "Greek Yogurt and Nuts",
+      "meal_type": "breakfast",
+      "subrecipes": [
+        {
+          "id": 58,
+          "name": "Mixed Nuts",
+          "is_main": false,
+          "max_serving": null,
+          "macros": {
+            "kcal": 61.29,
+            "protein": 2.0,
+            "carbs": 1.33,
+            "fat": 5.33
+          }
+        },
+        {
+          "id": 26,
+          "name": "Honey",
+          "is_main": true,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 33.0,
+            "protein": 0.03,
+            "carbs": 8.22,
+            "fat": 0.0
+          }
+        },
+        {
+          "id": 24,
+          "name": "Greek Yogurt (Plain)",
+          "is_main": true,
+          "max_serving": 2,
+          "macros": {
+            "kcal": 127.6,
+            "protein": 15.0,
+            "carbs": 7.0,
+            "fat": 4.4
+          }
+        }
+      ]
+    },
+    "lunch": {
+      "recipe_id": 34,
+      "recipe_name": "Shawarma Meat Plate",
+      "meal_type": "lunch",
+      "subrecipes": [
+        {
+          "id": 54,
+          "name": "Pickles",
+          "is_main": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 4.0,
+            "protein": 0.2,
+            "carbs": 0.8,
+            "fat": 0.0
+          }
+        },
+        {
+          "id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "id": 29,
+          "name": "Pita Bread",
+          "is_main": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 104.7,
+            "protein": 3.35,
+            "carbs": 21.7,
+            "fat": 0.5
+          }
+        },
+        {
+          "id": 48,
+          "name": "Tarator Sauce",
+          "is_main": false,
+          "max_serving": 5,
+          "macros": {
+            "kcal": 69.05,
+            "protein": 2.88,
+            "carbs": 2.35,
+            "fat": 5.35
+          }
+        },
+        {
+          "id": 49,
+          "name": "Shawarma Meat",
+          "is_main": true,
+          "max_serving": null,
+          "macros": {
+            "kcal": 208.65,
+            "protein": 30.3,
+            "carbs": 2.4,
+            "fat": 8.65
+          }
+        }
+      ]
+    },
+    "snack": {
+      "recipe_id": 59,
+      "recipe_name": "Energy Bomb: Halawa, Dates & Nuts",
+      "meal_type": "snack",
+      "subrecipes": [
+        {
+          "id": 85,
+          "name": "Halawa Date Mixed Nuts",
+          "is_main": false,
+          "max_serving": 10,
+          "macros": {
+            "kcal": 127.85,
+            "protein": 2.6,
+            "carbs": 17.07,
+            "fat": 5.47
+          }
+        }
+      ]
+    },
+    "dinner": {
+      "recipe_id": 50,
+      "recipe_name": "Siyadiye",
+      "meal_type": "dinner",
+      "subrecipes": [
+        {
+          "id": 70,
+          "name": "Rice Fish Broth",
+          "is_main": true,
+          "max_serving": null,
+          "macros": {
+            "kcal": 87.98,
+            "protein": 1.68,
+            "carbs": 19.7,
+            "fat": 0.28
+          }
+        },
+        {
+          "id": 44,
+          "name": "Akli House Salad",
+          "is_main": false,
+          "max_serving": 1,
+          "macros": {
+            "kcal": 85.45,
+            "protein": 2.32,
+            "carbs": 12.02,
+            "fat": 3.12
+          }
+        },
+        {
+          "id": 48,
+          "name": "Tarator Sauce",
+          "is_main": false,
+          "max_serving": 3,
+          "macros": {
+            "kcal": 69.05,
+            "protein": 2.88,
+            "carbs": 2.35,
+            "fat": 5.35
+          }
+        },
+        {
+          "id": 75,
+          "name": "Siyadiye Main",
+          "is_main": true,
+          "max_serving": null,
+          "macros": {
+            "kcal": 153.53,
+            "protein": 13.67,
+            "carbs": 0.94,
+            "fat": 10.57
+          }
+        }
+      ]
+    }
+  },
+  "meal_combos": {
+    "full_day": [
+      "breakfast",
+      "lunch",
+      "snack",
+      "dinner"
+    ],
+    "lunch_snack_dinner": [
+      "lunch",
+      "snack",
+      "dinner"
+    ],
+    "lunch_dinner": [
+      "lunch",
+      "dinner"
+    ],
+    "lunch_only": [
+      "lunch"
+    ],
+    "dinner_only": [
+      "dinner"
+    ],
+    "lunch_snack": [
+      "lunch",
+      "snack"
+    ]
+  }
+}

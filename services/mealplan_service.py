@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Tuple
 from collections import defaultdict
 
 from pulp import (
-    LpProblem, LpMinimize, LpVariable, lpSum, LpInteger, value,
+    LpProblem, LpMinimize, LpVariable, lpSum, LpInteger, LpBinary, value,
     PULP_CBC_CMD, LpStatus
 )
 from utils.supabase_client import supabase
@@ -26,6 +26,23 @@ KCAL_TOLERANCES  = [0.08, 0.10, 0.15, 0.20]
 # the absolute slack proportionate instead of letting small targets blow up
 # or large targets get an unrealistically wide band.
 BASE_MACRO_TOLERANCES = [0.15, 0.18, 0.22, 0.25]
+
+# BASE kcal band for the safety-net pass tried right before BEST_EFFORT_LP
+# drops the kcal bound too (see optimize_subrecipes, pass 3b) — always
+# passed through kcal_tolerance() before use, same proportional scaling
+# as the rest of the ladder, NOT used flat. (First version used this
+# value as a flat % directly, which for a large-kcal client gave a much
+# wider absolute band than intended — e.g. ~[1732, 4041] kcal for a
+# ~2887 target — wide enough that the solver could still ride the band
+# down near its floor under protein pressure. Found via real testing:
+# a day landed at 1781 kcal, barely above that floor, "hard-bounded" in
+# name only.) Still wider than the normal ladder's loosest rung (20%),
+# but properly scaled down for large targets like every other tier.
+# Macros are deliberately left soft-only at this tier (see that pass's
+# comment for why: hard-bounding both kcal and macros here was still
+# often infeasible, and leaving BOTH soft let kcal collapse by ~50% to
+# protect a macro instead).
+SAFETY_NET_KCAL_TOL = 0.40
 
 # kcal-per-gram for each macro, used to convert a gram target into its
 # share of total daily kcal.
@@ -97,6 +114,17 @@ WEIGHT_PROTEIN   = 1.0
 WEIGHT_CARBS     = 1.0
 WEIGHT_FAT       = 1.0
 WEIGHT_KCAL_SOFT = 0.30
+
+# Soft penalty (always active, every pass) for snack outweighing lunch/
+# dinner, or breakfast outweighing both — see the meal-shape deviation
+# terms in _solve_lp_once. Weighted higher than WEIGHT_KCAL_SOFT: this is
+# a genuine culinary-sanity rule the product explicitly wants respected
+# whenever possible, not a minor tiebreaker, but it must still be able to
+# lose to kcal/macro accuracy at BEST_EFFORT_LP rather than force a wildly
+# wrong calorie total (the HARD version of this rule, applied only when
+# hard_bounds=True, is what actually guarantees zero violations whenever
+# the ladder can find a feasible answer at all).
+WEIGHT_MEAL_SHAPE_SOFT = 0.6
 
 # Maximum factor by which max_serving may be auto-scaled when the day's
 # recipe combination structurally cannot reach the calorie target at max servings.
@@ -308,6 +336,8 @@ def _safe_fallback(
         if s["is_main"]:
             mains_by_meal[s["meal"]].append(i)
 
+    present_types = {info.get("meal_type") for info in recipes_by_meal.values()}
+
     def _kcal_by_meal_type(servs: Dict[int, float]) -> Dict[str, float]:
         out: Dict[str, float] = defaultdict(float)
         for i, s in enumerate(all_subs):
@@ -354,6 +384,22 @@ def _safe_fallback(
             lunch, dinner = by_type["lunch"], by_type["dinner"]
             smaller = min(lunch, dinner)
             if smaller > 0 and abs(lunch - dinner) / smaller > RELAXED_DINNER_LUNCH_DIFF_PCT:
+                return False
+
+        # Same relative meal-size sanity rules as _solve_lp_once - the
+        # greedy fallback must not reintroduce what the LP passes forbid.
+        if mt == "snack":
+            if "lunch" in present_types and by_type["snack"] > by_type["lunch"]:
+                return False
+            if "dinner" in present_types and by_type["snack"] > by_type["dinner"]:
+                return False
+        if mt == "breakfast":
+            if "lunch" in present_types and "dinner" in present_types:
+                if by_type["breakfast"] > by_type["lunch"] and by_type["breakfast"] > by_type["dinner"]:
+                    return False
+            elif "lunch" in present_types and by_type["breakfast"] > by_type["lunch"]:
+                return False
+            elif "dinner" in present_types and by_type["breakfast"] > by_type["dinner"]:
                 return False
         return True
 
@@ -543,6 +589,21 @@ def _solve_lp_once(
     total_F = lpSum(servings_expr[i] * s["macros"]["fat"]     for i, s in enumerate(all_subs))
     total_K = lpSum(servings_expr[i] * s["macros"]["kcal"]    for i, s in enumerate(all_subs))
 
+    # Per-meal-type kcal, needed both for the hard distribution constraints
+    # further down AND for the soft meal-shape penalty folded into the
+    # objective below (computed here, early, so both can use it).
+    kcal_by_type: Dict[str, Any] = defaultdict(int)
+    for i, s in enumerate(all_subs):
+        meal_key  = s["meal"]
+        meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
+        if meal_type:
+            kcal_by_type[meal_type] = kcal_by_type[meal_type] + servings_expr[i] * s["macros"]["kcal"]
+    types         = set(kcal_by_type.keys())
+    has_breakfast = "breakfast" in types
+    has_lunch     = "lunch"     in types
+    has_dinner    = "dinner"    in types
+    has_snack     = "snack"     in types
+
     # ------------------------------------------------------------------
     # Absolute deviation variables (|total - target| via two-sided constraints)
     # ------------------------------------------------------------------
@@ -561,7 +622,43 @@ def _solve_lp_once(
     prob += (kcal_t - total_K) <=  dev_K
 
     # ------------------------------------------------------------------
-    # Objective: percentage-normalised macro deviations + soft kcal penalty
+    # Meal-shape SOFT deviation terms — how much snack outweighs lunch/
+    # dinner, and how much breakfast outweighs BOTH lunch and dinner.
+    # Always folded into the objective (all passes, including
+    # BEST_EFFORT_LP), separately from the HARD versions of these same
+    # rules added further below (which only apply when hard_bounds=True).
+    # This is deliberate: BEST_EFFORT_LP exists specifically to always
+    # find an answer close to the kcal/macro target by dropping every
+    # other hard bound — hard-walling these shape rules there too can
+    # make hitting the target itself infeasible (found via real testing:
+    # a 3-meal day where satisfying "snack <= lunch" left no way to reach
+    # anywhere near kcal target, so the solver settled ~50% under target
+    # instead). Soft-only at that tier means shape is still strongly
+    # discouraged from being violated, but never at the cost of a wildly
+    # wrong calorie total.
+    # ------------------------------------------------------------------
+    dev_snack_v_lunch  = LpVariable("dev_snack_v_lunch",  lowBound=0)
+    dev_snack_v_dinner = LpVariable("dev_snack_v_dinner", lowBound=0)
+    dev_breakfast_v_bigger = LpVariable("dev_breakfast_v_bigger", lowBound=0)
+
+    if has_snack and has_lunch:
+        prob += kcal_by_type["snack"] - kcal_by_type["lunch"] <= dev_snack_v_lunch
+    if has_snack and has_dinner:
+        prob += kcal_by_type["snack"] - kcal_by_type["dinner"] <= dev_snack_v_dinner
+
+    if has_breakfast and has_lunch and has_dinner:
+        _shape_big_m = 3.0 * max(kcal_t, 1.0)
+        _bigger_meal_soft = LpVariable("bigger_meal_is_dinner_soft", cat=LpBinary)
+        prob += kcal_by_type["breakfast"] - kcal_by_type["lunch"]  <= dev_breakfast_v_bigger + _shape_big_m * (1 - _bigger_meal_soft)
+        prob += kcal_by_type["breakfast"] - kcal_by_type["dinner"] <= dev_breakfast_v_bigger + _shape_big_m * _bigger_meal_soft
+    elif has_breakfast and has_lunch and not has_dinner:
+        prob += kcal_by_type["breakfast"] - kcal_by_type["lunch"] <= dev_breakfast_v_bigger
+    elif has_breakfast and has_dinner and not has_lunch:
+        prob += kcal_by_type["breakfast"] - kcal_by_type["dinner"] <= dev_breakfast_v_bigger
+
+    # ------------------------------------------------------------------
+    # Objective: percentage-normalised macro deviations + soft kcal
+    # penalty + soft meal-shape penalty
     # ------------------------------------------------------------------
     safe_P = max(P_t, 1.0)
     safe_C = max(C_t, 1.0)
@@ -573,6 +670,9 @@ def _solve_lp_once(
         + WEIGHT_CARBS     * (dev_C / safe_C)
         + WEIGHT_FAT       * (dev_F / safe_F)
         + WEIGHT_KCAL_SOFT * (dev_K / safe_K)
+        + WEIGHT_MEAL_SHAPE_SOFT * (dev_snack_v_lunch / safe_K)
+        + WEIGHT_MEAL_SHAPE_SOFT * (dev_snack_v_dinner / safe_K)
+        + WEIGHT_MEAL_SHAPE_SOFT * (dev_breakfast_v_bigger / safe_K)
     )
 
     # ------------------------------------------------------------------
@@ -648,21 +748,9 @@ def _solve_lp_once(
     # Caps are relative to total_K (not the fixed kcal_t) so they stay
     # proportionally meaningful when the solver drifts within the band.
     # Uses a single elif chain to avoid multiple conflicting blocks.
+    # (kcal_by_type/types/has_* were computed earlier, alongside the
+    # objective's soft meal-shape terms — reused here as-is.)
     # ------------------------------------------------------------------
-    kcal_by_type: Dict[str, Any] = defaultdict(int)
-    for i, s in enumerate(all_subs):
-        meal_key  = s["meal"]
-        meal_type = recipes_by_meal.get(meal_key, {}).get("meal_type")
-        if meal_type:
-            kcal_by_type[meal_type] = kcal_by_type[meal_type] + servings_expr[i] * s["macros"]["kcal"]
-
-    types = set(kcal_by_type.keys())
-
-    has_breakfast = "breakfast" in types
-    has_lunch     = "lunch"     in types
-    has_dinner    = "dinner"    in types
-    has_snack     = "snack"     in types
-
     if has_breakfast and has_lunch and has_dinner and has_snack:
         prob += kcal_by_type["snack"]     <= _snack_max     * total_K
         prob += kcal_by_type["breakfast"] <= _breakfast_max * total_K
@@ -704,6 +792,51 @@ def _solve_lp_once(
         prob += kcal_by_type["breakfast"] <= _breakfast_max * total_K
 
     # All other single-meal or unrecognised combinations: no distribution constraint.
+
+    # ------------------------------------------------------------------
+    # Relative meal-size sanity rules (explicit product direction) — HARD
+    # versions. Only applied when hard_bounds=True (the strict/relaxed
+    # tolerance ladder), matching how the kcal/macro hard bands above are
+    # already gated. NOT applied at BEST_EFFORT_LP (hard_bounds=False):
+    # that tier exists specifically to always find an answer close to the
+    # kcal/macro target by dropping every other hard bound, and hard-
+    # walling these shape rules there too can make hitting the target
+    # itself infeasible (confirmed via real testing — a 3-meal day where
+    # "snack <= lunch" left no way to reach anywhere near kcal target,
+    # solver settled ~50% under target instead of respecting a shape
+    # rule). BEST_EFFORT_LP still respects these rules via the SOFT
+    # deviation terms folded into the objective above (always active,
+    # every pass) — just not as an absolute wall.
+    #   1. Snack must never outweigh lunch OR dinner individually. The
+    #      %-of-day caps above aren't enough on their own — a single-
+    #      subrecipe snack with no serving ceiling can still land under
+    #      its %-of-day cap while numerically exceeding a modest lunch or
+    #      dinner (e.g. snack at 34% of a day beats a lunch that's only
+    #      24% of it).
+    #   2. Breakfast must never outweigh BOTH lunch and dinner — one of
+    #      lunch/dinner should always be the day's biggest meal. "OR" has
+    #      no direct linear form, so it's modeled as a disjunction via one
+    #      binary indicator (standard big-M encoding). M must be a plain
+    #      CONSTANT (PuLP can't multiply two variable expressions
+    #      together) — kcal_t scaled up is a safe, well-scaled bound since
+    #      no single meal type's solved kcal should ever approach 3x the
+    #      day's own target.
+    # ------------------------------------------------------------------
+    if hard_bounds:
+        if has_snack and has_lunch:
+            prob += kcal_by_type["snack"] <= kcal_by_type["lunch"]
+        if has_snack and has_dinner:
+            prob += kcal_by_type["snack"] <= kcal_by_type["dinner"]
+
+        if has_breakfast and has_lunch and has_dinner:
+            _BIG_M = 3.0 * max(kcal_t, 1.0)
+            _bigger_meal = LpVariable("bigger_meal_is_dinner", cat=LpBinary)
+            prob += kcal_by_type["breakfast"] <= kcal_by_type["lunch"]  + _BIG_M * (1 - _bigger_meal)
+            prob += kcal_by_type["breakfast"] <= kcal_by_type["dinner"] + _BIG_M * _bigger_meal
+        elif has_breakfast and has_lunch and not has_dinner:
+            prob += kcal_by_type["breakfast"] <= kcal_by_type["lunch"]
+        elif has_breakfast and has_dinner and not has_lunch:
+            prob += kcal_by_type["breakfast"] <= kcal_by_type["dinner"]
 
     # ------------------------------------------------------------------
     # Solve
@@ -962,6 +1095,53 @@ def optimize_subrecipes(
                 if result is not None:
                     return result
 
+    # ------------------------------------------------------------------
+    # 3b. Safety-net pass: KCAL stays hard-bounded (wide, but real);
+    #     macros go soft-only (objective-guided, no hard band) — before
+    #     dropping the kcal bound too. Found via real testing: hard-
+    #     bounding BOTH kcal and macros here (even at a wide %) was often
+    #     still infeasible when a recipe combination's fixed protein-per-
+    #     kcal ratio structurally exceeds what the target implies (e.g.
+    #     mains with no serving ceiling at ~0.14g protein/kcal, against a
+    #     weekly-carryover-slashed target wanting ~0.04g/kcal — no
+    #     tolerance band accommodates that gap). And a fully-unbounded
+    #     objective (both kcal AND macros soft) will happily sacrifice
+    #     kcal by ~50% to avoid overshooting the already-slashed protein
+    #     target instead — a real, reproduced case (1372 kcal against a
+    #     2784 target). Keeping kcal hard-bounded here, alone, fixes both:
+    #     the solver is FORCED to stay close to the calorie target no
+    #     matter what, and lets protein/carbs/fat land wherever the
+    #     recipes' fixed ratios put them — confirmed via direct testing to
+    #     resolve the reproduced case (1372 -> 2508 kcal, against the same
+    #     2784 target, same recipes).
+    # ------------------------------------------------------------------
+    for strict_culinary in (False, True):
+        for step in STEPS:
+            result = _solve_lp_once(
+                all_subs=all_subs,
+                recipes_by_meal=recipes_by_meal,
+                P_t=P_t,
+                C_t=C_t,
+                F_t=F_t,
+                kcal_t=kcal_t,
+                serving_step=step,
+                tol=kcal_tolerance(kcal_t, SAFETY_NET_KCAL_TOL),
+                macro_tols={"protein": 0.0, "carbs": 0.0, "fat": 0.0},
+                allow_under_kcal=allow_under_kcal,
+                strict_culinary=strict_culinary,
+                hard_bounds=True,
+                macro_hard_bounds=False,
+                fine_eligible=fine_eligible,
+            )
+            if result is not None:
+                return result
+
+    # ------------------------------------------------------------------
+    # 3c. True best-effort: same LP, same objective, hard bounds dropped
+    #     entirely. Reached only if even the wide safety-net band above
+    #     is infeasible — a genuinely structural mismatch between this
+    #     day's specific recipes and the target.
+    # ------------------------------------------------------------------
     final_macro_tols = {
         "protein": macro_tolerance("protein", P_t, kcal_t, BASE_MACRO_TOLERANCES[-1]),
         "carbs":   macro_tolerance("carbs",   C_t, kcal_t, BASE_MACRO_TOLERANCES[-1]),

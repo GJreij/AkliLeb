@@ -1,0 +1,24 @@
+Running version=v2_shipped against REAL services/mealplan_service.py: 88 diets x 6 combos = 528 points
+  50/528 (19.7s elapsed)
+  100/528 (44.9s elapsed)
+  150/528 (80.8s elapsed)
+  200/528 (113.7s elapsed)
+  250/528 (146.0s elapsed)
+  300/528 (183.2s elapsed)
+  350/528 (216.7s elapsed)
+  400/528 (249.3s elapsed)
+  450/528 (286.7s elapsed)
+  500/528 (321.6s elapsed)
+  528/528 (340.3s elapsed)
+
+Done in 340.3s
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\results_v2_shipped.json
+Wrote C:\Users\georg\OneDrive\Desktop\AKLI\Leb App\Akli App\BackEnd\mealplanner-flask\scripts\solver_study\data\results_v2_shipped.csv
+
+Solve-mode distribution:
+  best_effort_lp        348  (65.9%)
+  strict_tight          133  (25.2%)
+  strict_relaxed_tol     38  (7.2%)
+  relaxed_culinary        9  (1.7%)
+
+Culinary-cap guardrail breaches: 0/528
