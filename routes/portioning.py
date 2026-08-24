@@ -17,7 +17,6 @@ def portioning_summary():
 
     raw_subrecipe_id = normalize_filter_value(body.get("subrecipe_id"))
     raw_mpdr_ids = normalize_filter_value(body.get("meal_plan_day_recipe_ids"))
-    raw_status = normalize_filter_value(body.get("cooking_status")) or "completed"
 
     if raw_subrecipe_id is None:
         return jsonify({"error": "subrecipe_id is required"}), 400
@@ -35,7 +34,6 @@ def portioning_summary():
     result, error = get_portioning_summary(
         subrecipe_id=subrecipe_id,
         meal_plan_day_recipe_ids=meal_plan_day_recipe_ids,
-        cooking_status=raw_status
     )
 
     if error:

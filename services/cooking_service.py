@@ -19,35 +19,37 @@ def apply_null_filter(query, column, value):
 
 
 # ---------------------------------------------------------
-#   Helper: compute per-serving progress
-# ---------------------------------------------------------
-def _serving_progress(s):
-    cooking = (s.get("cooking_status") or "").lower()
-    portioning = (s.get("portioning_status") or "").lower()
-
-    completed = {"completed", "complete", "done"}
-    pending = {"pending", "in_progress", ""}
-
-    if portioning in completed:
-        return 1.0
-    if cooking in completed and portioning in pending:
-        return 0.5
-    return 0.0
-
-
-# ---------------------------------------------------------
 #   Main service: full cooking overview
 # ---------------------------------------------------------
 def get_cooking_overview(start_date, end_date, filters):
 
     # =====================================================
-    # 1️⃣ Fetch meal_plan_days
+    # 1️⃣ Fetch deliveries in range (delivery_date — same
+    #     semantics as procurement/packaging/deliveries) and
+    #     resolve their meal_plan_days from there. Cooking
+    #     always happens on delivery_date, regardless of
+    #     AM/PM slot (see order_service._get_slot_period).
     # =====================================================
+    deliveries_in_range = (
+        supabase.table("deliveries")
+        .select("id, meal_plan_day_id, user_id, delivery_slot_id, delivery_date")
+        .gte("delivery_date", start_date)
+        .lte("delivery_date", end_date)
+        .execute()
+        .data
+    ) or []
+
+    if not deliveries_in_range:
+        return []
+
+    mpd_ids = list({d["meal_plan_day_id"] for d in deliveries_in_range if d.get("meal_plan_day_id")})
+    if not mpd_ids:
+        return []
+
     mpd = (
         supabase.table("meal_plan_day")
         .select("id, date, delivery_id")
-        .gte("date", start_date)
-        .lte("date", end_date)
+        .in_("id", mpd_ids)
         .execute()
         .data
     )
@@ -58,18 +60,22 @@ def get_cooking_overview(start_date, end_date, filters):
     mpd_map = {x["id"]: x for x in mpd}
     mpd_ids = [x["id"] for x in mpd]
 
+    # Earliest delivery_date per meal_plan_day, for display — a meal_plan_day
+    # could in theory have more than one delivery row.
+    delivery_date_by_mpd = {}
+    for d in deliveries_in_range:
+        mid = d.get("meal_plan_day_id")
+        if not mid:
+            continue
+        if mid not in delivery_date_by_mpd or d["delivery_date"] < delivery_date_by_mpd[mid]:
+            delivery_date_by_mpd[mid] = d["delivery_date"]
+
     # =====================================================
     # 2️⃣ Deliveries filtering
     # =====================================================
     if filters["client_id"] or filters["delivery_slot_id"]:
 
-        deliveries = (
-            supabase.table("deliveries")
-            .select("id, meal_plan_day_id, user_id, delivery_slot_id")
-            .in_("meal_plan_day_id", mpd_ids)
-            .execute()
-            .data
-        )
+        deliveries = deliveries_in_range
 
         client_filter = filters["client_id"]
         if client_filter:
@@ -105,12 +111,11 @@ def get_cooking_overview(start_date, end_date, filters):
     # =====================================================
     mpdr_query = (
     supabase.table("meal_plan_day_recipe")
-    .select("id, meal_plan_day_id, recipe_id, cooking_status, packaging_status")
+    .select("id, meal_plan_day_id, recipe_id, packaging_status")
     .in_("meal_plan_day_id", mpd_ids)
     )
 
     mpdr_query = apply_null_filter(mpdr_query, "recipe_id", filters["recipe_id"])
-    mpdr_query = apply_null_filter(mpdr_query, "cooking_status", filters["cooking_status"])
 
     mpdr = mpdr_query.execute().data
     if not mpdr:
@@ -119,17 +124,13 @@ def get_cooking_overview(start_date, end_date, filters):
     mpdr_ids = [x["id"] for x in mpdr]
     recipe_ids = list({x["recipe_id"] for x in mpdr})
     # =====================================================
-    # 3.5️⃣ Fetch deliveries (to know which users are in this date range)
+    # 3.5️⃣ Which users are in this (filtered) date range
     # =====================================================
-    deliveries_for_range = (
-        supabase.table("deliveries")
-        .select("meal_plan_day_id, user_id")
-        .in_("meal_plan_day_id", mpd_ids)
-        .execute()
-        .data
-    ) or []
-
-    user_ids = sorted({d["user_id"] for d in deliveries_for_range if d.get("user_id")})
+    mpd_id_set = set(mpd_ids)
+    user_ids = sorted({
+        d["user_id"] for d in deliveries_in_range
+        if d.get("user_id") and d.get("meal_plan_day_id") in mpd_id_set
+    })
     # If there are no users (e.g., internal/testing days), comments will be empty.
     # =====================================================
     # 3.6️⃣ Fetch recipe comments from user_recipe_preferences
@@ -223,8 +224,7 @@ def get_cooking_overview(start_date, end_date, filters):
     )
 
     servings_query = apply_null_filter(servings_query, "subrecipe_id", filters["subrecipe_id"])
-    servings_query = apply_null_filter(servings_query, "cooking_status", filters["cooking_status"])
-    
+
 
     servings = servings_query.execute().data
     if not servings:
@@ -278,11 +278,17 @@ def get_cooking_overview(start_date, end_date, filters):
     # =====================================================
     output = []
 
+    # earliest_date shown to the admin is the cook/delivery date (what they
+    # filtered by), not the eating date — fall back to eating date only if a
+    # meal_plan_day somehow has no delivery row.
+    def _cook_date(meal_plan_day_id):
+        return delivery_date_by_mpd.get(meal_plan_day_id) or mpd_map[meal_plan_day_id]["date"]
+
     # SORT RECIPES BY EARLIEST DATE
     recipe_ids_sorted = sorted(
         recipe_ids,
         key=lambda rid: min(
-            mpd_map[r["meal_plan_day_id"]]["date"]
+            _cook_date(r["meal_plan_day_id"])
             for r in mpdr
             if r["recipe_id"] == rid
         )
@@ -302,7 +308,7 @@ def get_cooking_overview(start_date, end_date, filters):
         if not recipe_servings:
             continue
 
-        dates = [mpd_map[r["meal_plan_day_id"]]["date"] for r in mpdr_for_recipe]
+        dates = [_cook_date(r["meal_plan_day_id"]) for r in mpdr_for_recipe]
         earliest_date = min(dates)
 
         # ------------------------------------------
@@ -358,17 +364,6 @@ def get_cooking_overview(start_date, end_date, filters):
                 (s["recipe_subrecipe_serving_calculated"] or 0) for s in sub_servings
             )
 
-            # progress (avg of serving progresses)
-            progress_values = [_serving_progress(s) for s in sub_servings]
-            sub_progress = int((sum(progress_values) / len(progress_values)) * 100)
-
-            if sub_progress == 100:
-                sub_status = "completed"
-            elif sub_progress == 0:
-                sub_status = "pending"
-            else:
-                sub_status = "in_progress"
-
             # SUBRECIPE INGREDIENTS (sorted alphabetically)
             sub_ing_totals = defaultdict(float)
             for ing in subrec_ing_map[sub_id]:
@@ -399,8 +394,6 @@ def get_cooking_overview(start_date, end_date, filters):
                     "name": sub["name"],
                     "description": sub["description"],
                     "instructions": sub["instructions"],
-                    "status": sub_status,
-                    "progress": sub_progress,
                     "total_servings": total_servings,
                     "selected_meal_plan_day_recipe_serving_id": [s["id"] for s in sub_servings],
                     "ingredients_needed": sub_ing_list,
@@ -409,13 +402,6 @@ def get_cooking_overview(start_date, end_date, filters):
 
         # SORT SUBRECIPES ALPHABETICALLY
         subrecipe_list = sorted(subrecipe_list, key=lambda x: x["name"].lower())
-
-        # ------------------------------------------------
-        # 🟥 RECIPE PROGRESS = average of subrecipe progress
-        # ------------------------------------------------
-        recipe_progress = int(
-            sum(sub["progress"] for sub in subrecipe_list) / len(subrecipe_list)
-        ) if subrecipe_list else 0
 
         # final assembled recipe item
         output.append(
@@ -426,8 +412,6 @@ def get_cooking_overview(start_date, end_date, filters):
                 "instructions": recipe["instructions"],
                 "meal_plan_day_recipe_ids": mpdr_ids_for_recipe,
                 "earliest_date": earliest_date,
-                "cooking_status": mpdr_for_recipe[0]["cooking_status"],
-                "progress": recipe_progress,
                 "ingredients_needed": ingredient_list,
                 "subrecipes": subrecipe_list,
                 "comments": comments_by_recipe.get(recipe_id, []),

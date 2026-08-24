@@ -38,32 +38,22 @@ def parse_int_list(raw_value, field_name):
     raise ValueError(f"Unsupported format for {field_name}")
 
 
-def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_status="completed"):
+def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
 
     # --- 1. Fetch servings ---
     servings_res = (
         supabase.table("meal_plan_day_recipe_serving")
         .select(
             "id, meal_plan_day_recipe_id, subrecipe_id, "
-            "recipe_subrecipe_serving_calculated, weight_after_cooking, cooking_status,portioning_status "
+            "recipe_subrecipe_serving_calculated, weight_after_cooking, portioning_status "
         )
         .eq("subrecipe_id", subrecipe_id)
         .in_("meal_plan_day_recipe_id", meal_plan_day_recipe_ids)
-        .eq("cooking_status", cooking_status)
         .execute()
     )
     servings = servings_res.data or []
 
     if not servings:
-        any_status_res = (
-            supabase.table("meal_plan_day_recipe_serving")
-            .select("id", count="exact")
-            .eq("subrecipe_id", subrecipe_id)
-            .in_("meal_plan_day_recipe_id", meal_plan_day_recipe_ids)
-            .execute()
-        )
-        if (any_status_res.count or 0) > 0:
-            return None, "This subrecipe hasn't been marked as cooked yet — mark it cooked before portioning"
         return None, "No servings found"
 
     # Make sure subrecipe appears in *all* input meal_plan_day_recipe_ids
@@ -84,9 +74,14 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
     )
 
     # --- 2. meal_plan_day_recipe → meal_plan_day_id ---
+    # Also pulls recipe_id/meal_type so each client line can show which meal
+    # this portion belongs to — the same subrecipe can appear in two
+    # different meals for the same client on the same day (e.g. a salad in
+    # both their lunch and dinner recipe), and those must stay two separate
+    # physical portions, not get folded into one combined line.
     mpdr_res = (
         supabase.table("meal_plan_day_recipe")
-        .select("id, meal_plan_day_id")
+        .select("id, meal_plan_day_id, recipe_id, meal_type")
         .in_("id", list(found_ids))
         .execute()
     )
@@ -98,6 +93,19 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
         for row in mpdr_rows
         if row.get("meal_plan_day_id") is not None
     }
+
+    recipe_ids_for_mpdr = {
+        row["recipe_id"] for row in mpdr_rows if row.get("recipe_id") is not None
+    }
+    recipes_by_id = {}
+    if recipe_ids_for_mpdr:
+        recipes_res = (
+            supabase.table("recipe")
+            .select("id, name")
+            .in_("id", list(recipe_ids_for_mpdr))
+            .execute()
+        )
+        recipes_by_id = {r["id"]: r for r in (recipes_res.data or [])}
 
     # --- 3. meal_plan_day ---
     mpd_res = (
@@ -192,9 +200,13 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
         deliv = deliveries_by_id.get(mpd.get("delivery_id"))
         user = users_by_id.get(deliv.get("user_id")) if deliv else None
         slot = slots_by_id.get(deliv.get("delivery_slot_id")) if deliv else None
+        recipe = recipes_by_id.get(mpdr.get("recipe_id")) if mpdr else None
 
         clients.append({
             "meal_plan_day_recipe_serving_id": r["id"],
+            "meal_plan_day_recipe_id": r["meal_plan_day_recipe_id"],
+            "recipe_name": recipe.get("name") if recipe else None,
+            "meal_type": mpdr.get("meal_type") if mpdr else None,
             "delivery_date": deliv.get("delivery_date") if deliv else None,
             "delivery_slot": slot,
             "client": user,
@@ -202,8 +214,7 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids, cooking_statu
             # servings
             "servings_for_client": r.get("recipe_subrecipe_serving_calculated"),
 
-            # cooking / portioning status
-            "cooking_status": r.get("cooking_status"),
+            # portioning status
             "portioning_status": r.get("portioning_status"),
 
             # weight handling
