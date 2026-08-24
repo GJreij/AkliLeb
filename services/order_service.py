@@ -118,7 +118,11 @@ class OrderService:
             }).execute()
 
 
-        return {"success": True, "message": "Order successfully confirmed."}, 200
+        return {
+            "success": True,
+            "message": "Order successfully confirmed.",
+            "order_id": meal_plan_record["id"],
+        }, 200
 
     # ---------- SLOT PERIOD HELPER ----------
 
