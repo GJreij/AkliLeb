@@ -365,82 +365,98 @@ class OrderService:
         slot_day_map,
     ):
         """
-        For each DELIVERY day:
-          - increment current_count in delivery_slots_daily (no extra SELECTs)
-          - insert deliveries row
+        Batched version of the above: one bulk upsert for existing
+        delivery_slots_daily count bumps, one bulk insert for all deliveries
+        rows — instead of 2 sequential REST calls PER delivery day. A large
+        order used to mean 200+ sequential round trips in this method alone;
+        this brings it down to 2-3 regardless of order length (see
+        _store_meal_plan_bundle for why that matters: enough of those adding
+        up made real orders exceed both gunicorn's and Heroku's router's
+        30s request timeouts, silently truncating the write mid-order).
         Return {delivery_date: delivery_id}
         """
-        deliveries_map = {}
         now = datetime.utcnow().isoformat()
 
+        # Bump current_count for days whose delivery_slots_daily row already
+        # existed (bulk upsert — one call for every day, not one call each).
+        slot_update_payload = []
         for day in delivery_days:
             slot_day = slot_day_map.get(day)
+            if not slot_day:
+                continue
+            cur = (slot_day.get("current_count") or 0) + 1
+            mx = slot_day.get("max_deliveries") or DEFAULT_MAX_DELIVERIES
+            if cur > mx:
+                cur = mx  # clamp, though we already checked capacity
+            slot_update_payload.append({"id": slot_day["id"], "current_count": cur, "updated_at": now})
+        if slot_update_payload:
+            self.sb.table("delivery_slots_daily").upsert(slot_update_payload).execute()
 
-            if slot_day:
-                cur = (slot_day.get("current_count") or 0) + 1
-                mx = slot_day.get("max_deliveries") or DEFAULT_MAX_DELIVERIES
-                if cur > mx:
-                    cur = mx  # clamp, though we already checked capacity
-                (
-                    self.sb.table("delivery_slots_daily")
-                    .update(
-                        {
-                            "current_count": cur,
-                            "updated_at": now,
-                        }
-                    )
-                    .eq("id", slot_day["id"])
-                    .execute()
-                )
-            else:
-                # Extremely rare because we created missing rows earlier
-                ins = (
-                    self.sb.table("delivery_slots_daily")
-                    .insert(
-                        {
-                            "delivery_slot_id": delivery_slot_id,
-                            "delivery_date": day,
-                            "current_count": 1,
-                            "max_deliveries": DEFAULT_MAX_DELIVERIES,
-                            "created_at": now,
-                        }
-                    )
-                    .execute()
-                )
-                slot_day = ins.data[0] if ins.data else None
-
-            # insert delivery
-            delivery_ins = (
-                self.sb.table("deliveries")
+        # Extremely rare (rows were already created in bulk earlier): handle
+        # any still-missing day individually, one at a time is fine here.
+        for day in delivery_days:
+            if slot_day_map.get(day):
+                continue
+            ins = (
+                self.sb.table("delivery_slots_daily")
                 .insert(
                     {
-                        "user_id": user_id,
-                        "delivery_date": day,
                         "delivery_slot_id": delivery_slot_id,
-                        "delivery_address": delivery_address,
-                        "status": "pending",
+                        "delivery_date": day,
+                        "current_count": 1,
+                        "max_deliveries": DEFAULT_MAX_DELIVERIES,
                         "created_at": now,
                     }
                 )
                 .execute()
             )
+            slot_day_map[day] = ins.data[0] if ins.data else None
 
-            delivery_id = delivery_ins.data[0]["id"]
-            deliveries_map[day] = delivery_id
-
+        # Bulk-insert all deliveries rows in one call, matched back by
+        # delivery_date (unique within this single order's delivery_days).
+        delivery_payload = [
+            {
+                "user_id": user_id,
+                "delivery_date": day,
+                "delivery_slot_id": delivery_slot_id,
+                "delivery_address": delivery_address,
+                "status": "pending",
+                "created_at": now,
+            }
+            for day in delivery_days
+        ]
+        delivery_rows = (
+            self.sb.table("deliveries").insert(delivery_payload).execute().data
+            if delivery_payload
+            else []
+        )
+        deliveries_map = {row["delivery_date"]: row["id"] for row in delivery_rows}
         return deliveries_map
 
     def _store_meal_plan_bundle(self, user_id, meal_plan, deliveries_map, meal_to_delivery):
         """
         Insert meal_plan, per-day rows (with status + correct delivery_id),
         update deliveries.meal_plan_day_id, then recipes & subrecipes.
+
+        Batched: this used to be ~13 sequential REST calls PER DAY (a plain
+        18-day order was 200+ round trips in one request). That routinely
+        pushed real orders past both gunicorn's worker timeout AND Heroku's
+        own (non-configurable) 30s router timeout — in one confirmed
+        incident it got a request killed mid-write, leaving days/recipes
+        written but payment (created after this function returns) never
+        reached at all. Every insert/update below is now one bulk call
+        across the whole order regardless of how many days it has, so the
+        full write finishes in roughly constant time instead of scaling
+        with day count.
+
         Returns:
           day_to_meal_plan_day_id: {meal_date_str: meal_plan_day_id}
           meal_plan_record: the inserted meal_plan row
         """
         now = datetime.utcnow().isoformat()
+        days = meal_plan.get("days") or []
 
-        # meal_plan
+        # meal_plan (single row — nothing to batch here)
         plan_ins = (
             self.sb.table("meal_plan")
             .insert(
@@ -456,124 +472,120 @@ class OrderService:
         meal_plan_record = plan_ins.data[0]
         plan_id = meal_plan_record["id"]
 
-        day_to_meal_plan_day_id = {}
-
-        for day in (meal_plan.get("days") or []):
+        # 1️⃣ Bulk-create every meal_plan_day row, matched back by date
+        # (unique within this one meal_plan's own day list).
+        day_payload = []
+        for day in days:
             meal_date_str = day["date"]
-            totals = day.get("totals") or {}
-
-            # find the delivery date for this meal_date, then the delivery_id
             delivery_date_str = meal_to_delivery.get(meal_date_str)
             delivery_id = deliveries_map.get(delivery_date_str) if delivery_date_str else None
-
-            # 1️⃣ Create meal_plan_day
-            day_ins = (
-                self.sb.table("meal_plan_day")
-                .insert(
-                    {
-                        "meal_plan_id": plan_id,
-                        "date": meal_date_str,
-                        "delivery_id": delivery_id,
-                        "status": "pending",  # assuming this column still exists
-                        "created_at": now,
-                    }
-                )
-                .execute()
+            day_payload.append(
+                {
+                    "meal_plan_id": plan_id,
+                    "date": meal_date_str,
+                    "delivery_id": delivery_id,
+                    "status": "pending",
+                    "created_at": now,
+                }
             )
-            meal_plan_day_id = day_ins.data[0]["id"]
-            day_to_meal_plan_day_id[meal_date_str] = meal_plan_day_id
+        day_rows = self.sb.table("meal_plan_day").insert(day_payload).execute().data if day_payload else []
+        day_to_meal_plan_day_id = {row["date"]: row["id"] for row in day_rows}
 
-            # 2️⃣ Create daily_macro_order
-            daily_macro_ins = (
-                self.sb.table("daily_macro_order")
-                .insert(
-                    {
-                        "user_id": user_id,
-                        "meal_plan_day_id": meal_plan_day_id,
-                        "for_date": meal_date_str,
-                        "protein_ordered": totals.get("protein"),
-                        "carbs_ordered": totals.get("carbs"),
-                        "fat_ordered": totals.get("fat"),
-                        "kcal_ordered": totals.get("kcal"),
-                        "saturated_fat_ordered": (
-                            totals.get("saturated")
-                            if "saturated" in totals
-                            else None
-                        ),
-                        "fiber_ordered": totals.get("fiber"),
-                        "sugar_ordered": totals.get("sugar"),
-                        "created_at": now,
-                    }
-                )
-                .execute()
+        # 2️⃣ Bulk-create every daily_macro_order row, matched back by for_date.
+        dmo_payload = []
+        for day in days:
+            meal_date_str = day["date"]
+            totals = day.get("totals") or {}
+            dmo_payload.append(
+                {
+                    "user_id": user_id,
+                    "meal_plan_day_id": day_to_meal_plan_day_id[meal_date_str],
+                    "for_date": meal_date_str,
+                    "protein_ordered": totals.get("protein"),
+                    "carbs_ordered": totals.get("carbs"),
+                    "fat_ordered": totals.get("fat"),
+                    "kcal_ordered": totals.get("kcal"),
+                    "saturated_fat_ordered": (totals.get("saturated") if "saturated" in totals else None),
+                    "fiber_ordered": totals.get("fiber"),
+                    "sugar_ordered": totals.get("sugar"),
+                    "created_at": now,
+                }
             )
-            daily_macro_order_id = daily_macro_ins.data[0]["id"]
+        dmo_rows = self.sb.table("daily_macro_order").insert(dmo_payload).execute().data if dmo_payload else []
+        date_to_dmo_id = {row["for_date"]: row["id"] for row in dmo_rows}
 
-            # 3️⃣ Update meal_plan_day to include daily_macro_order_id
-            (
-                self.sb.table("meal_plan_day")
-                .update(
-                    {
-                        "daily_macro_order_id": daily_macro_order_id,
-                        "updated_at": now,
-                    }
-                )
-                .eq("id", meal_plan_day_id)
-                .execute()
-            )
+        # 3️⃣ Bulk-update meal_plan_day.daily_macro_order_id (one upsert call
+        # carrying every day's id + new value, instead of one UPDATE per day).
+        mpd_update_payload = [
+            {"id": mpd_id, "daily_macro_order_id": date_to_dmo_id[date_str], "updated_at": now}
+            for date_str, mpd_id in day_to_meal_plan_day_id.items()
+            if date_str in date_to_dmo_id
+        ]
+        if mpd_update_payload:
+            self.sb.table("meal_plan_day").upsert(mpd_update_payload).execute()
 
-            # 4️⃣ Back-link on deliveries (delivery -> meal_plan_day)
+        # 4️⃣ Bulk-update deliveries.meal_plan_day_id the same way.
+        delivery_update_payload = []
+        for day in days:
+            meal_date_str = day["date"]
+            delivery_date_str = meal_to_delivery.get(meal_date_str)
+            delivery_id = deliveries_map.get(delivery_date_str) if delivery_date_str else None
             if delivery_id:
-                (
-                    self.sb.table("deliveries")
-                    .update(
-                        {
-                            "meal_plan_day_id": meal_plan_day_id,
-                            "updated_at": now,
-                        }
-                    )
-                    .eq("id", delivery_id)
-                    .execute()
+                delivery_update_payload.append(
+                    {"id": delivery_id, "meal_plan_day_id": day_to_meal_plan_day_id[meal_date_str], "updated_at": now}
                 )
+        if delivery_update_payload:
+            self.sb.table("deliveries").upsert(delivery_update_payload).execute()
 
-            # 5️⃣ Recipes + subrecipes
+        # 5️⃣ Bulk-create every meal_plan_day_recipe row across every day,
+        # matched back by (meal_plan_day_id, meal_type) — unique per day in
+        # this system (one recipe per meal slot per day).
+        recipe_payload = []
+        for day in days:
+            mpd_id = day_to_meal_plan_day_id[day["date"]]
             for meal in (day.get("meals") or []):
-                rec_ins = (
-                    self.sb.table("meal_plan_day_recipe")
-                    .insert(
+                recipe_payload.append(
+                    {
+                        "meal_plan_day_id": mpd_id,
+                        "recipe_id": meal["recipe_id"],
+                        "meal_type": meal.get("meal_type"),
+                        "cooking_status": "pending",
+                        "packaging_status": "pending",
+                        "created_at": now,
+                    }
+                )
+        recipe_rows = (
+            self.sb.table("meal_plan_day_recipe").insert(recipe_payload).execute().data
+            if recipe_payload
+            else []
+        )
+        key_to_mpdr_id = {(row["meal_plan_day_id"], row["meal_type"]): row["id"] for row in recipe_rows}
+
+        # 6️⃣ Bulk-create every meal_plan_day_recipe_serving row across every
+        # recipe across every day, in one final call.
+        serving_payload = []
+        for day in days:
+            mpd_id = day_to_meal_plan_day_id[day["date"]]
+            for meal in (day.get("meals") or []):
+                mpdr_id = key_to_mpdr_id[(mpd_id, meal.get("meal_type"))]
+                for sub in (meal.get("subrecipes") or []):
+                    sub_macros = sub.get("macros") or {}
+                    serving_payload.append(
                         {
-                            "meal_plan_day_id": meal_plan_day_id,
-                            "recipe_id": meal["recipe_id"],
-                            "meal_type": meal.get("meal_type"),
-                            "cooking_status": "pending",    # updated schema
-                            "packaging_status": "pending",  # updated schema
+                            "meal_plan_day_recipe_id": mpdr_id,
+                            "subrecipe_id": sub["subrecipe_id"],
+                            "recipe_subrecipe_serving_calculated": sub.get("servings"),
+                            "kcal_calculated": sub_macros.get("kcal"),
+                            "protein_calculated": sub_macros.get("protein"),
+                            "carbs_calculated": sub_macros.get("carbs"),
+                            "fat_calculated": sub_macros.get("fat"),
+                            "cooking_status": "pending",
+                            "portioning_status": "pending",
                             "created_at": now,
                         }
                     )
-                    .execute()
-                )
-                mpdr_id = rec_ins.data[0]["id"]
-
-                for sub in (meal.get("subrecipes") or []):
-                    sub_macros = sub.get("macros") or {}
-                    (
-                        self.sb.table("meal_plan_day_recipe_serving")
-                        .insert(
-                            {
-                                "meal_plan_day_recipe_id": mpdr_id,
-                                "subrecipe_id": sub["subrecipe_id"],
-                                "recipe_subrecipe_serving_calculated": sub.get("servings"),
-                                "kcal_calculated": sub_macros.get("kcal"),
-                                "protein_calculated": sub_macros.get("protein"),
-                                "carbs_calculated": sub_macros.get("carbs"),
-                                "fat_calculated": sub_macros.get("fat"),
-                                "cooking_status": "pending",     # per-serving cooking
-                                "portioning_status": "pending",  # per-serving portioning
-                                "created_at": now,
-                            }
-                        )
-                        .execute()
-                    )
+        if serving_payload:
+            self.sb.table("meal_plan_day_recipe_serving").insert(serving_payload).execute()
 
         return day_to_meal_plan_day_id, meal_plan_record
 
@@ -626,6 +638,7 @@ class OrderService:
         now = datetime.utcnow().isoformat()
         topup_amount = round(float(topup_amount or 0), 2)
 
+        payment_payload = []
         for i, day_data in enumerate(daily_breakdown):
             date_str = day_data.get("date")
 
@@ -671,27 +684,28 @@ class OrderService:
             )
             delivery_fee_amount = round(float(day_data.get("delivery_fee") or 0), 2)
 
-            (
-                self.sb.table("payment")
-                .insert(
-                    {
-                        "ordered_user_id": ordered_user_id,
-                        "amount": amount,
-                        "wallet_amount_applied": wallet_applied,
-                        "status": "pending",
-                        "provider": payment_method,
-                        "provider_payment_id": None,
-                        "currency": "USD",
-                        "meal_plan_day_id": meal_plan_day_id,
-                        "affiliate_id": affiliate_id,
-                        "commission_rate": commission_rate,
-                        "commission_amount": commission_amount,
-                        "original_amount": original_amount,
-                        "discount_amount": discount_amount,
-                        "delivery_fee_amount": delivery_fee_amount,
-                        "created_at": now,
-                    }
-                )
-                .execute()
+            payment_payload.append(
+                {
+                    "ordered_user_id": ordered_user_id,
+                    "amount": amount,
+                    "wallet_amount_applied": wallet_applied,
+                    "status": "pending",
+                    "provider": payment_method,
+                    "provider_payment_id": None,
+                    "currency": "USD",
+                    "meal_plan_day_id": meal_plan_day_id,
+                    "affiliate_id": affiliate_id,
+                    "commission_rate": commission_rate,
+                    "commission_amount": commission_amount,
+                    "original_amount": original_amount,
+                    "discount_amount": discount_amount,
+                    "delivery_fee_amount": delivery_fee_amount,
+                    "created_at": now,
+                }
             )
+
+        # One bulk insert for every day's payment row instead of one REST
+        # call per day — see _store_meal_plan_bundle for why that matters.
+        if payment_payload:
+            self.sb.table("payment").insert(payment_payload).execute()
 
