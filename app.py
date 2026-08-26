@@ -12,6 +12,9 @@ from routes.client_meals import client_meals_bp
 from routes.price_simulator import simple_price_bp  
 from routes.get_available_recipes import get_available_recipes_bp
 from routes.delivery import delivery_bp
+from routes.cancellation_routes import cancellation_bp
+from routes.meal_swap_routes import meal_swap_bp
+from routes.day_edit_routes import day_edit_bp
 import os
 
 app = Flask(__name__)
@@ -30,6 +33,9 @@ app.register_blueprint(client_meals_bp)
 app.register_blueprint(simple_price_bp)  # <--- FIX
 app.register_blueprint(get_available_recipes_bp)
 app.register_blueprint(delivery_bp)
+app.register_blueprint(cancellation_bp)
+app.register_blueprint(meal_swap_bp)
+app.register_blueprint(day_edit_bp)
 
 @app.route("/")
 def home():

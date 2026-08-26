@@ -35,6 +35,8 @@ def confirm_order():
         payment_method      = payload.get("payment_method")       # "cash" | "whish" | "neo"
         delivery_address    = payload.get("delivery_address")     # free-text override from frontend
         delivery_address_id = payload.get("delivery_address_id")  # id from user_delivery_address
+        wallet_amount_requested = payload.get("wallet_amount_requested") or 0
+        wallet_topup_amount = payload.get("wallet_topup_amount") or 0
 
         # ---- Input validation ----
         missing = []
@@ -65,6 +67,8 @@ def confirm_order():
             payment_method=payment_method,
             delivery_address=delivery_address,
             delivery_address_id=delivery_address_id,
+            wallet_amount_requested=wallet_amount_requested,
+            wallet_topup_amount=wallet_topup_amount,
         )
 
         if status_code == 200:

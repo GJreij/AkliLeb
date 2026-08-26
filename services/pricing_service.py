@@ -52,6 +52,9 @@ def fetch_latest_prices() -> dict:
         "day_packaging_price": float(price_data.get("day_packaging_price", 0) or 0),
         "recipe_packaging_price": float(price_data.get("recipe_packaging_price", 0) or 0),
         "subrecipe_packaging_price": float(price_data.get("subrecipe_packaging_price", 0) or 0),
+        "delivery_price": float(price_data.get("delivery_price", 0) or 0),
+        "swap_fee_price": float(price_data.get("swap_fee_price", 0) or 0),
+        "edit_fee_price": float(price_data.get("edit_fee_price", 0) or 0),
     }
 
 

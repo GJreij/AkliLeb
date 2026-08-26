@@ -48,12 +48,18 @@ def get_cooking_overview(start_date, end_date, filters):
 
     mpd = (
         supabase.table("meal_plan_day")
-        .select("id, date, delivery_id")
+        .select("id, date, delivery_id, status")
         .in_("id", mpd_ids)
         .execute()
         .data
     )
 
+    if not mpd:
+        return []
+
+    # Cancelled/cancellation-pending orders must not appear on the cooking
+    # board — don't cook/package something that might not ship.
+    mpd = [x for x in mpd if x.get("status") not in ("cancellation_pending", "cancelled")]
     if not mpd:
         return []
 
@@ -111,7 +117,7 @@ def get_cooking_overview(start_date, end_date, filters):
     # =====================================================
     mpdr_query = (
     supabase.table("meal_plan_day_recipe")
-    .select("id, meal_plan_day_id, recipe_id, packaging_status")
+    .select("id, meal_plan_day_id, recipe_id, packaging_status, is_swapped")
     .in_("meal_plan_day_id", mpd_ids)
     )
 
@@ -415,6 +421,10 @@ def get_cooking_overview(start_date, end_date, filters):
                 "ingredients_needed": ingredient_list,
                 "subrecipes": subrecipe_list,
                 "comments": comments_by_recipe.get(recipe_id, []),
+                # True if this recipe was swapped in on ANY of the underlying
+                # days/clients being grouped here — staff must not trust an
+                # already-printed label showing pre-swap macros in that case.
+                "any_swapped": any(r.get("is_swapped") for r in mpdr_for_recipe),
             }
         )
 

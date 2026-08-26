@@ -306,6 +306,22 @@ def checkout_summary():
     weekly_price_final = round(weekly_price_after_discount + delivery_fee, 2)
 
     # ------------------------------------------------------------------
+    # STEP 5c — Wallet balance available to apply at checkout
+    # ------------------------------------------------------------------
+    try:
+        wallet_rows = (
+            supabase.table("wallet_transactions")
+            .select("amount")
+            .eq("user_id", user_id)
+            .execute()
+            .data
+        ) or []
+        wallet_balance = round(sum(r.get("amount") or 0 for r in wallet_rows), 2)
+    except Exception:
+        wallet_balance = 0
+    wallet_max_applicable = round(min(wallet_balance, final_price_with_delivery), 2)
+
+    # ------------------------------------------------------------------
     # STEP 6 — Response
     # ------------------------------------------------------------------
     summary = {
@@ -372,7 +388,10 @@ def checkout_summary():
             # Kept for kitchen/ops use (delivery-per-day eligibility,
             # operational cost tracking) — no longer the customer-facing
             # billing unit, see "weekly_price" above.
-            "daily_breakdown": final_daily_breakdown
+            "daily_breakdown": final_daily_breakdown,
+
+            "wallet_balance": wallet_balance,
+            "wallet_max_applicable": wallet_max_applicable,
         }
     }
 

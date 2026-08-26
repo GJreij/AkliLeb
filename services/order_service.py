@@ -17,7 +17,7 @@ class OrderService:
 
     # ---------- PUBLIC ORCHESTRATOR ----------
 
-    def confirm_order(self, user_id, meal_plan, checkout_summary, delivery_slot_id, payment_method=None, delivery_address=None, delivery_address_id=None):
+    def confirm_order(self, user_id, meal_plan, checkout_summary, delivery_slot_id, payment_method=None, delivery_address=None, delivery_address_id=None, wallet_amount_requested=0, wallet_topup_amount=0):
         """
         Flow:
           1) Extract ordered meal days from meal_plan
@@ -76,6 +76,40 @@ class OrderService:
         if not resolved_address:
             return {"error": "A delivery address is required to confirm this order."}, 400
 
+        # 6.5) apply wallet credit, if requested — done BEFORE any other write
+        # so an insufficient-balance failure aborts before deliveries/meal_plan/
+        # payment rows are touched, not after (this write path is otherwise a
+        # series of separate REST calls with no transaction wrapping it all).
+        wallet_allocation_by_day = {}
+        wallet_amount_requested = float(wallet_amount_requested or 0)
+        if wallet_amount_requested > 0:
+            daily_breakdown = (checkout_summary.get("price_breakdown") or {}).get("daily_breakdown") or []
+            order_total = sum(float(d.get("total_price_with_delivery") or 0) for d in daily_breakdown)
+            if order_total <= 0:
+                return {"error": "Cannot apply wallet credit to an order with no charge."}, 400
+            if wallet_amount_requested > order_total:
+                return {"error": "Wallet amount requested exceeds the order total."}, 400
+
+            try:
+                self.sb.rpc("spend_wallet", {
+                    "p_user_id": user_id,
+                    "p_amount": wallet_amount_requested,
+                    "p_related_order_id": None,  # meal_plan doesn't exist yet; linked below once it does
+                    "p_note": "checkout wallet application",
+                }).execute()
+            except Exception as e:
+                return {"error": f"Wallet spend failed: {e}"}, 400
+
+            remaining = wallet_amount_requested
+            for i, d in enumerate(daily_breakdown):
+                day_total = float(d.get("total_price_with_delivery") or 0)
+                if i == len(daily_breakdown) - 1:
+                    share = round(remaining, 2)  # last day absorbs rounding drift
+                else:
+                    share = round(day_total * wallet_amount_requested / order_total, 2)
+                wallet_allocation_by_day[d["date"]] = share
+                remaining -= share
+
         # 7) create deliveries + increment counts (uses DELIVERY days)
         deliveries_map = self._create_deliveries_and_increment_counts(
             user_id=user_id,
@@ -93,13 +127,53 @@ class OrderService:
             meal_to_delivery=meal_to_delivery,  # meal_date -> delivery_date
         )
 
-        # 9) payment
+        # 9) payment — a wallet top-up amount (new money the client is
+        # adding to their wallet, on top of paying for the order) rides on
+        # the LAST day's payment row so what's actually collected reconciles;
+        # it is NOT credited to the wallet here (payment starts "pending" for
+        # cash/Whish/Neo — crediting before that would create wallet money
+        # that doesn't exist yet). It's credited once admin marks the order's
+        # payment "paid" (see admin/financial/actions.ts::setPaymentStatus).
+        wallet_topup_amount = min(round(float(wallet_topup_amount or 0), 2), 100.0)
         self._create_payment_record(
             ordered_user_id=user_id,
             checkout_summary=checkout_summary,
             day_to_meal_plan_day_id=day_to_meal_plan_day_id,
             payment_method=payment_method,
+            wallet_allocation_by_day=wallet_allocation_by_day,
+            topup_amount=wallet_topup_amount,
         )
+
+        if wallet_topup_amount > 0:
+            self.sb.table("wallet_checkout_topup").insert({
+                "meal_plan_id": meal_plan_record["id"],
+                "user_id": user_id,
+                "amount": wallet_topup_amount,
+                "credited": False,
+            }).execute()
+
+        # Link the wallet debit (created in step 6.5, before meal_plan existed)
+        # back to the order now that it has an id — best-effort, purely for
+        # traceability, doesn't affect the balance guard already enforced.
+        if wallet_amount_requested > 0:
+            try:
+                unlinked = (
+                    self.sb.table("wallet_transactions")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("type", "checkout_spend")
+                    .is_("related_order_id", "null")
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if unlinked:
+                    self.sb.table("wallet_transactions").update(
+                        {"related_order_id": meal_plan_record["id"]}
+                    ).eq("id", unlinked[0]["id"]).execute()
+            except Exception:
+                pass
 
         # 10) notify admin now that payment rows exist (the order email needs
         # the payment method, which isn't written until step 9 — sending the
@@ -531,6 +605,8 @@ class OrderService:
         checkout_summary,
         day_to_meal_plan_day_id,
         payment_method=None,
+        wallet_allocation_by_day=None,
+        topup_amount=0,
     ):
         """
         Create one payment per meal day, linked to meal_plan_day.
@@ -545,10 +621,12 @@ class OrderService:
         daily_breakdown = price_breakdown.get("daily_breakdown") or []
         affiliate_id = price_breakdown.get("affiliate_id")
         commission_rate = price_breakdown.get("commission_rate")
+        wallet_allocation_by_day = wallet_allocation_by_day or {}
 
         now = datetime.utcnow().isoformat()
+        topup_amount = round(float(topup_amount or 0), 2)
 
-        for day_data in daily_breakdown:
+        for i, day_data in enumerate(daily_breakdown):
             date_str = day_data.get("date")
 
             # ✅ Always charge the final amount for that day (incl. delivery)
@@ -558,6 +636,15 @@ class OrderService:
                 amount = (day_data.get("total_price") or 0) + (day_data.get("delivery_fee") or 0)
 
             amount = round(float(amount), 2)
+            wallet_applied = round(float(wallet_allocation_by_day.get(date_str) or 0), 2)
+            amount = round(amount - wallet_applied, 2)
+
+            # A wallet top-up (new money, not a discount) rides on the LAST
+            # day's payment row so the total actually collected reconciles —
+            # tracked separately in wallet_checkout_topup, never split across
+            # days (that would corrupt each day's own commission/wallet math).
+            if topup_amount > 0 and i == len(daily_breakdown) - 1:
+                amount = round(amount + topup_amount, 2)
 
             meal_plan_day_id = day_to_meal_plan_day_id.get(date_str)
             if not meal_plan_day_id:
@@ -573,12 +660,24 @@ class OrderService:
                 else None
             )
 
+            # Snapshot this day's pre-discount price, discount share, and
+            # delivery fee — untouched by wallet-spend/topup below, and the
+            # only way a later cancellation can tell whether the remaining
+            # days still qualify for the volume discount they originally got
+            # (see CancellationService._apply_volume_discount_correction).
+            original_amount = day_data.get("original_total_price")
+            discount_amount = round(
+                float(day_data.get("original_total_price") or 0) - float(day_data.get("total_price") or 0), 2
+            )
+            delivery_fee_amount = round(float(day_data.get("delivery_fee") or 0), 2)
+
             (
                 self.sb.table("payment")
                 .insert(
                     {
                         "ordered_user_id": ordered_user_id,
                         "amount": amount,
+                        "wallet_amount_applied": wallet_applied,
                         "status": "pending",
                         "provider": payment_method,
                         "provider_payment_id": None,
@@ -587,6 +686,9 @@ class OrderService:
                         "affiliate_id": affiliate_id,
                         "commission_rate": commission_rate,
                         "commission_amount": commission_amount,
+                        "original_amount": original_amount,
+                        "discount_amount": discount_amount,
+                        "delivery_fee_amount": delivery_fee_amount,
                         "created_at": now,
                     }
                 )

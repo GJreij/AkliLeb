@@ -2,6 +2,20 @@
 
 from utils.supabase_client import supabase
 
+# Canonical meal-of-day order, matching the convention used across the
+# client-facing app (labels.ts, OrderHistory.tsx, OrderFlow.tsx) and the
+# admin packaging/portioning boards.
+MEAL_TYPE_ORDER = {"breakfast": 0, "lunch": 1, "snack": 2, "dinner": 3}
+
+
+def _client_sort_key(client):
+    return f"{client.get('name') or ''} {client.get('last_name') or ''}".strip().lower()
+
+
+def _recipe_sort_key(recipe):
+    meal_rank = MEAL_TYPE_ORDER.get((recipe.get("meal_type") or "").lower(), 99)
+    return (meal_rank, (recipe.get("recipe_name") or "").lower())
+
 
 def get_packaging_view(start_date, end_date):
 
@@ -49,12 +63,14 @@ def get_packaging_view(start_date, end_date):
     # --- 4. meal_plan_day ---
     mpd_res = (
         supabase.table("meal_plan_day")
-        .select("id, delivery_id")
+        .select("id, delivery_id, status")
         .in_("delivery_id", list(deliveries_by_id.keys()))
         .execute()
     )
 
-    mpd = mpd_res.data or []
+    # Cancelled/cancellation-pending orders must not appear on the packaging
+    # board — don't cook/package something that might not ship.
+    mpd = [x for x in (mpd_res.data or []) if x.get("status") not in ("cancellation_pending", "cancelled")]
     mpd_by_delivery = {}
     for row in mpd:
         mpd_by_delivery.setdefault(row["delivery_id"], []).append(row)
@@ -63,7 +79,7 @@ def get_packaging_view(start_date, end_date):
     mpd_ids = [m["id"] for m in mpd]
     mpdr_res = (
         supabase.table("meal_plan_day_recipe")
-        .select("id, meal_plan_day_id, recipe_id, meal_type, packaging_status")
+        .select("id, meal_plan_day_id, recipe_id, meal_type, packaging_status, is_swapped")
         .in_("meal_plan_day_id", mpd_ids)
         .execute()
     )
@@ -117,6 +133,14 @@ def get_packaging_view(start_date, end_date):
     packaging_output = {}
 
     for delivery in deliveries:
+        # A delivery with no active (non-cancelled) meal_plan_day has nothing
+        # to package — skip it entirely rather than showing an empty client
+        # card, which would otherwise confuse the packaging team into
+        # thinking there's a forgotten order for that slot.
+        mpd_entries = mpd_by_delivery.get(delivery["id"], [])
+        if not mpd_entries:
+            continue
+
         d_date = delivery["delivery_date"]
         slot_id = delivery["delivery_slot_id"]
         user = users_by_id.get(delivery["user_id"])
@@ -144,9 +168,6 @@ def get_packaging_view(start_date, end_date):
                 "recipes": []
             }
 
-        # Which mpd entries belong to this delivery?
-        mpd_entries = mpd_by_delivery.get(delivery["id"], [])
-
         for mpd_entry in mpd_entries:
             mpdr_list = mpdr_by_mpd.get(mpd_entry["id"], [])
 
@@ -167,6 +188,7 @@ def get_packaging_view(start_date, end_date):
                     "meal_type": mpdr_entry.get("meal_type"),
                     "recipe_name": recipe_info.get("name") if recipe_info else None,
                     "packaging_status": mpdr_entry.get("packaging_status") or "pending",
+                    "is_swapped": bool(mpdr_entry.get("is_swapped")),
                     "subrecipes": subs
                 })
 
@@ -178,7 +200,9 @@ def get_packaging_view(start_date, end_date):
     for d_date, slots in sorted(packaging_output.items()):
         slot_list = []
         for slot_id, slot_data in sorted(slots.items(), key=lambda x: x[1]["start_time"] or ""):
-            clients_list = list(slot_data["clients"].values())
+            clients_list = sorted(slot_data["clients"].values(), key=_client_sort_key)
+            for client in clients_list:
+                client["recipes"].sort(key=_recipe_sort_key)
             slot_data_out = {
                 "slot_id": slot_id,
                 "start_time": slot_data["start_time"],

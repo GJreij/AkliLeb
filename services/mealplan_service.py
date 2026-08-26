@@ -1,3 +1,4 @@
+import functools
 import math
 from typing import Dict, Any, List, Tuple
 from collections import defaultdict
@@ -7,6 +8,7 @@ from pulp import (
     PULP_CBC_CMD, LpStatus
 )
 from utils.supabase_client import supabase
+from services.pricing_service import get_kcal_discount
 
 
 # =============================================================================
@@ -130,6 +132,12 @@ WEIGHT_MEAL_SHAPE_SOFT = 0.6
 # recipe combination structurally cannot reach the calorie target at max servings.
 # Prevents LP infeasibility for high-calorie users (athletes, etc.).
 MAX_SERVING_SCALE_FACTOR = 3.0
+
+# Swap's "rebalance the day" option only: how far any OTHER (non-swapped)
+# meal's servings may move from their current value. Keeps the day's
+# rebalance to a real, executable plate instead of an unbounded subrecipe
+# scaling to whatever multiple papers over the swapped meal's macro shift.
+SWAP_MAX_MOVEMENT_PCT = 0.3
 
 # =============================================================================
 # CULINARY CONSTRAINT SETS
@@ -471,6 +479,13 @@ def _solve_lp_once(
     protein_hard_bound: bool = False,
     skip_balance: bool = False,
     fine_eligible: set | None = None,
+    locked_meal_key: str | None = None,
+    locked_units: Dict[int, float] | None = None,
+    prices: Dict[str, float] | None = None,
+    price_ceiling: float | None = None,
+    flat_fee: float = 0.0,
+    reference_servings: Dict[int, float] | None = None,
+    max_movement_pct: float | None = None,
 ) -> Tuple[List[Dict], float, Dict] | None:
     """
     Build and solve one LP instance.
@@ -503,6 +518,28 @@ def _solve_lp_once(
        bound between two mains sharing a meal — that check stops one main
        from dominating another and has nothing to do with the single-meal
        infeasibility problem skip_balance exists to solve.
+
+    7. locked_meal_key/locked_units (post-confirmation meal swap only):
+       when set, the swapped meal's servings are fixed at locked_units
+       instead of being solved for — its macros/price still count toward
+       every constraint and the objective, it just can't be scaled to an
+       odd fraction. Every other meal stays exactly as free as normal.
+
+    8. prices/price_ceiling (same feature): caps total day price at a hard
+       ceiling, expressed as a LINEAR constraint on the same decision
+       variables the macro totals use. The one subtlety: the real pricing
+       model's kcal-discount is a NON-linear function of the solved kcal
+       total, which can't go into an LP directly — so the discount used
+       here is computed from kcal_t (the target, a constant) instead of
+       the solved total_K. kcal_t is already hard-bounded close to
+       whatever total_K resolves to, so this is a safe linearization, not
+       a different rule.
+
+    9. flat_fee: a flat, swap/edit-specific platform fee (0 by default —
+       ordinary generate/update solves never set this) added as a constant
+       term onto total_price, so it counts toward price_ceiling/affordability
+       checks like any other cost rather than being a surprise tacked on
+       after the fact.
 
     Returns None if the LP is infeasible or non-optimal.
     """
@@ -582,12 +619,63 @@ def _solve_lp_once(
         servings_expr = {i: serving_step * y[i] for i in range(len(all_subs))}
 
     # ------------------------------------------------------------------
+    # Lock a meal's servings (post-confirmation swap only). The locked
+    # meal's indices are fixed to the caller-supplied constants instead of
+    # being left as free variables — everything downstream (macro totals,
+    # price, every constraint) still counts them, they just can't move.
+    # ------------------------------------------------------------------
+    if locked_meal_key is not None and locked_units:
+        for i, s in enumerate(all_subs):
+            if s["meal"] == locked_meal_key and i in locked_units:
+                prob += servings_expr[i] == locked_units[i]
+
+    # ------------------------------------------------------------------
+    # Bound how far OTHER (non-locked) meals may move from their current
+    # servings (post-confirmation swap only). Without this, a subrecipe
+    # with no explicit max_serving is free to scale to whatever multiple
+    # the LP needs to paper over the locked meal's macro shortfall — found
+    # in testing to produce genuinely absurd plates (6x a single subrecipe)
+    # in exchange for a day-level macro total that merely looks correct on
+    # paper. This never applies to the locked meal itself (already exactly
+    # fixed above) or to a normal generate/update solve (reference_servings
+    # is only ever passed for a swap's "rebalance the day" option).
+    # ------------------------------------------------------------------
+    if reference_servings and max_movement_pct is not None:
+        for i, s in enumerate(all_subs):
+            if s["meal"] == locked_meal_key:
+                continue
+            ref = reference_servings.get(i)
+            if ref is None:
+                continue
+            prob += servings_expr[i] <= ref * (1 + max_movement_pct)
+            prob += servings_expr[i] >= ref * (1 - max_movement_pct)
+
+    # ------------------------------------------------------------------
     # Aggregate macro expressions
     # ------------------------------------------------------------------
     total_P = lpSum(servings_expr[i] * s["macros"]["protein"] for i, s in enumerate(all_subs))
     total_C = lpSum(servings_expr[i] * s["macros"]["carbs"]   for i, s in enumerate(all_subs))
     total_F = lpSum(servings_expr[i] * s["macros"]["fat"]     for i, s in enumerate(all_subs))
     total_K = lpSum(servings_expr[i] * s["macros"]["kcal"]    for i, s in enumerate(all_subs))
+
+    # Price expression (post-confirmation swap only — see point 8 above).
+    # discount_pct is deliberately computed from kcal_t (constant), not
+    # total_K (solved), since the real discount curve is non-linear in the
+    # solved kcal and can't go into an LP directly.
+    total_price = None
+    if prices is not None:
+        discount_pct = get_kcal_discount(kcal_t)
+        total_price = (
+            prices["day_packaging_price"]
+            + (1 - discount_pct) * (
+                total_P * prices["protein_price_per_g"]
+                + total_C * prices["carbs_price_per_g"]
+                + total_F * prices["fat_price_per_g"]
+            )
+            + len(recipes_by_meal) * prices["recipe_packaging_price"]
+            + len(all_subs) * prices["subrecipe_packaging_price"]
+            + flat_fee
+        )
 
     # Per-meal-type kcal, needed both for the hard distribution constraints
     # further down AND for the soft meal-shape penalty folded into the
@@ -709,6 +797,15 @@ def _solve_lp_once(
     elif protein_hard_bound and P_t > 0:
         prob += total_P >= (1.0 - macro_tols["protein"]) * P_t
         prob += total_P <= (1.0 + macro_tols["protein"]) * P_t
+
+    # ------------------------------------------------------------------
+    # Price ceiling (post-confirmation swap only — see point 8 above).
+    # A hard wall, never relaxed across the tolerance ladder: the whole
+    # point is that a swap can never cost more than the client's wallet
+    # can cover, no matter how loose the macro bands get elsewhere.
+    # ------------------------------------------------------------------
+    if total_price is not None and price_ceiling is not None:
+        prob += total_price <= price_ceiling
 
     # ------------------------------------------------------------------
     # Intra-meal serving balance, driven by is_main:
@@ -870,6 +967,7 @@ def _solve_lp_once(
         "macro_hard_bounds":  macro_hard_bounds,
         "protein_hard_bound": protein_hard_bound,
         "skip_balance":       skip_balance,
+        "price":              round(float(value(total_price)), 2) if total_price is not None else None,
     }
 
     optimized = []
@@ -904,6 +1002,13 @@ def optimize_subrecipes(
     recipes_by_meal: Dict[str, Dict[str, Any]],
     macro_target: Dict[str, float],
     allow_under_kcal: bool = False,
+    locked_meal_key: str | None = None,
+    locked_subrecipe_servings: Dict[int, float] | None = None,
+    prices: Dict[str, float] | None = None,
+    price_ceiling: float | None = None,
+    flat_fee: float = 0.0,
+    reference_servings: Dict[Tuple[str, int], float] | None = None,
+    max_movement_pct: float | None = None,
 ) -> Tuple[List[Dict[str, Any]], float | None, Dict[str, Any]]:
     """
     Given a dict of meals for one day and a daily macro target, determine the
@@ -915,6 +1020,22 @@ def optimize_subrecipes(
     macro_target    : { protein_g, carbs_g, fat_g, kcal }
     allow_under_kcal: if True, the solver may go below (1-tol)*kcal without
                       penalty (used when a meal has been deleted/eaten out).
+    locked_meal_key / locked_subrecipe_servings / prices / price_ceiling:
+        post-confirmation meal-swap support (see _solve_lp_once points 7-8).
+        locked_subrecipe_servings is keyed by subrecipe_id (not the internal
+        all_subs index, which doesn't exist until this function builds it) —
+        translated to an index-keyed dict below before solving. Every other
+        meal in the day stays exactly as free as a normal solve.
+    reference_servings / max_movement_pct: swap's "rebalance the day" option
+        only — bounds every OTHER (non-locked) meal's servings to within
+        +/- max_movement_pct of its CURRENT stored value, keyed by
+        (meal_key, subrecipe_id) since the same subrecipe_id can appear in
+        more than one meal. Without this, a subrecipe with no max_serving
+        cap is free to scale to whatever multiple papers over the locked
+        meal's macro shortfall (confirmed in testing: a real swap drove one
+        subrecipe to 6x its normal serving). Never applies to a normal
+        generate/update solve or to Day Edit, both of which intentionally
+        leave other meals fully free.
 
     Returns
     -------
@@ -988,6 +1109,42 @@ def optimize_subrecipes(
     is_single_meal = len(recipes_by_meal) == 1
     STEPS = (1.0, SERVING_STEP_FINE, "mixed_quarter")
 
+    # Translate locked_subrecipe_servings (keyed by subrecipe_id — the only
+    # thing a caller can know before all_subs exists) into index-keyed
+    # locked_units (keyed by position in all_subs, which is what
+    # _solve_lp_once actually operates on).
+    locked_units: Dict[int, float] | None = None
+    if locked_meal_key is not None and locked_subrecipe_servings:
+        locked_units = {
+            i: locked_subrecipe_servings[s["subrecipe_id"]]
+            for i, s in enumerate(all_subs)
+            if s["meal"] == locked_meal_key and s["subrecipe_id"] in locked_subrecipe_servings
+        }
+
+    # Translate reference_servings (keyed by (meal_key, subrecipe_id), the
+    # only thing a caller can know before all_subs exists) into index-keyed,
+    # same reasoning as locked_subrecipe_servings above.
+    reference_units: Dict[int, float] | None = None
+    if reference_servings:
+        reference_units = {
+            i: reference_servings[(s["meal"], s["subrecipe_id"])]
+            for i, s in enumerate(all_subs)
+            if (s["meal"], s["subrecipe_id"]) in reference_servings
+        }
+
+    # Bind the swap-only params once so every rung of the tolerance ladder
+    # below gets them uniformly, without touching each of its call sites.
+    _solve = functools.partial(
+        _solve_lp_once,
+        locked_meal_key=locked_meal_key,
+        locked_units=locked_units,
+        prices=prices,
+        price_ceiling=price_ceiling,
+        flat_fee=flat_fee,
+        reference_servings=reference_units,
+        max_movement_pct=max_movement_pct,
+    )
+
     # ------------------------------------------------------------------
     # 3a. Single-meal days: kcal + protein bounded, carbs/fat best-fit only.
     #
@@ -1014,7 +1171,7 @@ def optimize_subrecipes(
             protein_macro_tols = {"protein": protein_tol, "carbs": 0.0, "fat": 0.0}
 
             for step in STEPS:
-                result = _solve_lp_once(
+                result = _solve(
                     all_subs=all_subs, recipes_by_meal=recipes_by_meal,
                     P_t=P_t, C_t=C_t, F_t=F_t, kcal_t=kcal_t,
                     serving_step=step, tol=tol, macro_tols=protein_macro_tols,
@@ -1026,7 +1183,7 @@ def optimize_subrecipes(
                     return result
 
             for step in STEPS:
-                result = _solve_lp_once(
+                result = _solve(
                     all_subs=all_subs, recipes_by_meal=recipes_by_meal,
                     P_t=P_t, C_t=C_t, F_t=F_t, kcal_t=kcal_t,
                     serving_step=step, tol=tol, macro_tols=zero_macro_tols,
@@ -1077,7 +1234,7 @@ def optimize_subrecipes(
                 "fat":     macro_tolerance("fat",      F_t, kcal_t, base_macro_tol),
             }
             for step in STEPS:
-                result = _solve_lp_once(
+                result = _solve(
                     all_subs=all_subs,
                     recipes_by_meal=recipes_by_meal,
                     P_t=P_t,
@@ -1117,7 +1274,7 @@ def optimize_subrecipes(
     # ------------------------------------------------------------------
     for strict_culinary in (False, True):
         for step in STEPS:
-            result = _solve_lp_once(
+            result = _solve(
                 all_subs=all_subs,
                 recipes_by_meal=recipes_by_meal,
                 P_t=P_t,
@@ -1150,7 +1307,7 @@ def optimize_subrecipes(
     final_tol = kcal_tolerance(kcal_t, KCAL_TOLERANCES[-1])
     for strict_culinary in (False, True):
         for step in STEPS:
-            result = _solve_lp_once(
+            result = _solve(
                 all_subs=all_subs,
                 recipes_by_meal=recipes_by_meal,
                 P_t=P_t,
@@ -1175,6 +1332,51 @@ def optimize_subrecipes(
     # ------------------------------------------------------------------
     return _safe_fallback(
         all_subs, recipes_by_meal, P_t, C_t, F_t, kcal_t, allow_under_kcal
+    )
+
+
+# =============================================================================
+# MEAL SWAP (post-confirmation modify)
+# =============================================================================
+
+def optimize_subrecipes_with_swap(
+    recipes_by_meal: Dict[str, Dict[str, Any]],
+    macro_target: Dict[str, float],
+    locked_meal_key: str,
+    locked_recipe_id: int,
+    prices: Dict[str, float] | None = None,
+    price_ceiling: float | None = None,
+    allow_under_kcal: bool = False,
+    flat_fee: float = 0.0,
+    reference_servings: Dict[Tuple[str, int], float] | None = None,
+    max_movement_pct: float | None = None,
+) -> Tuple[List[Dict[str, Any]], float | None, Dict[str, Any]]:
+    """
+    Re-solve a day with one meal swapped to `locked_recipe_id` and locked at
+    its standard single serving (1x every one of its subrecipes — never
+    scaled to an odd fraction; a rigid dish like lasagna can't be served at
+    0.85 servings). Every other meal in `recipes_by_meal` stays exactly as
+    free to rebalance as a normal generate/update solve.
+
+    Caller contract: `recipes_by_meal[locked_meal_key]["recipe_id"]` must
+    already equal `locked_recipe_id` — this only derives the locked-servings
+    map and forwards it into optimize_subrecipes, it doesn't mutate
+    recipes_by_meal itself.
+    """
+    locked_subs = get_recipe_subrecipes(locked_recipe_id)
+    locked_subrecipe_servings = {s["id"]: 1.0 for s in locked_subs}
+
+    return optimize_subrecipes(
+        recipes_by_meal,
+        macro_target,
+        allow_under_kcal=allow_under_kcal,
+        locked_meal_key=locked_meal_key,
+        locked_subrecipe_servings=locked_subrecipe_servings,
+        prices=prices,
+        price_ceiling=price_ceiling,
+        flat_fee=flat_fee,
+        reference_servings=reference_servings,
+        max_movement_pct=max_movement_pct,
     )
 
 
