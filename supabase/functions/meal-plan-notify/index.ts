@@ -46,10 +46,23 @@ serve(async (req) => {
     return new Response("ignored", { status: 200 });
   }
 
-  // 3) Fetch user details from the user table
+  // 3) Fetch user details from the user table — including their declared
+  // allergens, so we can flag it below if this order actually contains one.
+  const ALLERGEN_KEYS = [
+    "celery", "cereals_containing_gluten", "crustaceans", "eggs", "fish",
+    "lupin", "milk", "molluscs", "sulphites", "mustard", "peanuts",
+    "sesame", "soybeans", "tree_nuts",
+  ] as const;
+  const ALLERGEN_LABELS: Record<string, string> = {
+    celery: "Celery", cereals_containing_gluten: "Gluten", crustaceans: "Crustaceans",
+    eggs: "Eggs", fish: "Fish", lupin: "Lupin", milk: "Milk", molluscs: "Molluscs",
+    sulphites: "Sulphites", mustard: "Mustard", peanuts: "Peanuts", sesame: "Sesame",
+    soybeans: "Soybeans", tree_nuts: "Tree nuts",
+  };
+
   const { data: user, error } = await supabase
     .from("user")
-    .select("name, last_name, email, phone_number")
+    .select(`name, last_name, email, phone_number, ${ALLERGEN_KEYS.join(", ")}`)
     .eq("id", record?.user_id)
     .single();
 
@@ -67,8 +80,12 @@ serve(async (req) => {
   let deliveryAddress: string | null = null;
   const { data: days } = await supabase
     .from("meal_plan_day")
-    .select("id, delivery_id")
+    .select("id, delivery_id, date")
     .eq("meal_plan_id", record?.id);
+
+  const dayDateById = new Map<number, string>(
+    (days ?? []).map((d: { id: number; date: string }) => [d.id, d.date])
+  );
 
   const deliveryIds = (days ?? [])
     .map((d: { delivery_id: number | null }) => d.delivery_id)
@@ -111,9 +128,73 @@ serve(async (req) => {
     paymentProvider = paymentRows?.[0]?.provider ?? null;
   }
 
+  // 3d) Check this order's dishes against the client's declared allergens —
+  // alert-only, nothing here blocks or delays the order; it just makes sure
+  // a human sees it immediately if it happens. Same recipe_allergen view
+  // used by every customer-facing surface (My Tastes, menu, order review),
+  // so this can never disagree with what the client themselves was shown.
+  let allergenConflictHtml = "";
+  const userAllergenFlags = (user ?? {}) as Record<string, boolean | null>;
+  const declaredAllergens = ALLERGEN_KEYS.filter(k => userAllergenFlags[k]);
+  if (declaredAllergens.length > 0 && mealPlanDayIds.length > 0) {
+    const { data: dayRecipes } = await supabase
+      .from("meal_plan_day_recipe")
+      .select("recipe_id, meal_plan_day_id, label, recipe:recipe_id(name)")
+      .in("meal_plan_day_id", mealPlanDayIds);
+
+    type DayRecipeRow = {
+      recipe_id: number;
+      meal_plan_day_id: number;
+      label: string | null;
+      recipe: { name: string | null } | { name: string | null }[] | null;
+    };
+    const dayRecipeRows = (dayRecipes ?? []) as DayRecipeRow[];
+    const recipeIds = Array.from(new Set(dayRecipeRows.map(r => r.recipe_id)));
+    if (recipeIds.length > 0) {
+      const { data: allergenRows } = await supabase
+        .from("recipe_allergen")
+        .select("*")
+        .in("recipe_id", recipeIds);
+
+      const conflictKeysByRecipe = new Map<number, string[]>();
+      for (const row of allergenRows ?? []) {
+        const flags = row as Record<string, boolean | null> & { recipe_id: number };
+        const hit = declaredAllergens.filter(k => flags[k]);
+        if (hit.length > 0) conflictKeysByRecipe.set(flags.recipe_id, hit);
+      }
+
+      if (conflictKeysByRecipe.size > 0) {
+        const dishName = (r: DayRecipeRow) => {
+          const embedded = Array.isArray(r.recipe) ? r.recipe[0] : r.recipe;
+          return r.label || embedded?.name || `Recipe #${r.recipe_id}`;
+        };
+        const lines = dayRecipeRows
+          .filter(r => conflictKeysByRecipe.has(r.recipe_id))
+          .map(r => {
+            const keys = conflictKeysByRecipe.get(r.recipe_id)!;
+            const day = dayDateById.get(r.meal_plan_day_id) ?? "—";
+            const labels = keys.map(k => ALLERGEN_LABELS[k] ?? k).join(", ");
+            return { day, html: `<li><b>${dishName(r)}</b> (${day}) — contains ${labels}</li>` };
+          })
+          .sort((a, b) => a.day.localeCompare(b.day))
+          .map(l => l.html);
+        allergenConflictHtml = `
+          <div style="background:#fff3e8;border:1px solid #f0b87a;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+            <h3 style="margin:0 0 6px;color:#c45f00;">⚠️ Allergen conflict</h3>
+            <p style="margin:0 0 8px;">${fullName} has declared: <b>${declaredAllergens.map(k => ALLERGEN_LABELS[k] ?? k).join(", ")}</b></p>
+            <ul style="margin:0;">${lines.join("")}</ul>
+          </div>
+        `;
+      }
+    }
+  }
+
   // 4) Build and send email
-  const subject = `🥗 New Akli Order — ${fullName}`;
+  const subject = allergenConflictHtml
+    ? `⚠️ Allergen conflict — New Akli Order — ${fullName}`
+    : `🥗 New Akli Order — ${fullName}`;
   const html = `
+    ${allergenConflictHtml}
     <h2>New meal plan order</h2>
 
     <h3>👤 Client</h3>

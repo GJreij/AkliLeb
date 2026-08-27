@@ -2,6 +2,12 @@
 
 from utils.supabase_client import supabase
 
+ALLERGEN_KEYS = [
+    "celery", "cereals_containing_gluten", "crustaceans", "eggs", "fish",
+    "lupin", "milk", "molluscs", "sulphites", "mustard", "peanuts",
+    "sesame", "soybeans", "tree_nuts",
+]
+
 
 def normalize_filter_value(value):
     if value is None:
@@ -140,7 +146,7 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
     if user_ids:
         users_res = (
             supabase.table("user")
-            .select("id, name, last_name")
+            .select("id, name, last_name, " + ", ".join(ALLERGEN_KEYS))
             .in_("id", list(user_ids))
             .execute()
         )
@@ -172,6 +178,19 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
 
     subrecipe_info = subrecipe_res.data[0]
 
+    # --- 7b. Subrecipe allergen rollup — same subrecipe_allergen view the
+    # customer-facing recipe_allergen view is built on, so a "this client is
+    # allergic" alert here can never disagree with what the client saw when
+    # ordering.
+    subrecipe_allergen_res = (
+        supabase.table("subrecipe_allergen")
+        .select("*")
+        .eq("subrecipe_id", subrecipe_id)
+        .execute()
+    )
+    subrecipe_allergens = subrecipe_allergen_res.data[0] if subrecipe_allergen_res.data else {}
+    subrecipe_allergen_keys = {k for k in ALLERGEN_KEYS if subrecipe_allergens.get(k)}
+
     # --- 8. Subrecipe ingredients ---
     sub_ingred_res = (
         supabase.table("subrec_ingred")
@@ -202,6 +221,12 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
         slot = slots_by_id.get(deliv.get("delivery_slot_id")) if deliv else None
         recipe = recipes_by_id.get(mpdr.get("recipe_id")) if mpdr else None
 
+        # Alert-only, never filters/reorders this list — just which of the
+        # client's own declared allergens this specific subrecipe contains.
+        client_allergens = []
+        if user and subrecipe_allergen_keys:
+            client_allergens = [k for k in subrecipe_allergen_keys if user.get(k)]
+
         clients.append({
             "meal_plan_day_recipe_serving_id": r["id"],
             "meal_plan_day_recipe_id": r["meal_plan_day_recipe_id"],
@@ -209,7 +234,11 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
             "meal_type": mpdr.get("meal_type") if mpdr else None,
             "delivery_date": deliv.get("delivery_date") if deliv else None,
             "delivery_slot": slot,
-            "client": user,
+            # Trimmed back down to id/name — the 14 allergen booleans were
+            # only pulled in to compute client_allergens above, not to leak
+            # raw flags through this response.
+            "client": {"id": user["id"], "name": user.get("name"), "last_name": user.get("last_name")} if user else None,
+            "client_allergens": client_allergens,
 
             # servings
             "servings_for_client": r.get("recipe_subrecipe_serving_calculated"),

@@ -1,5 +1,6 @@
 from utils.supabase_client import supabase
 from collections import defaultdict
+from services.portioning_service import ALLERGEN_KEYS
 
 
 # ---------------------------------------------------------
@@ -75,6 +76,14 @@ def get_cooking_overview(start_date, end_date, filters):
             continue
         if mid not in delivery_date_by_mpd or d["delivery_date"] < delivery_date_by_mpd[mid]:
             delivery_date_by_mpd[mid] = d["delivery_date"]
+
+    # meal_plan_day_id -> user_id, for the allergen-conflict check below —
+    # same 1:1 relationship delivery_date_by_mpd relies on.
+    user_id_by_mpd = {
+        d["meal_plan_day_id"]: d["user_id"]
+        for d in deliveries_in_range
+        if d.get("meal_plan_day_id") and d.get("user_id")
+    }
 
     # =====================================================
     # 2️⃣ Deliveries filtering
@@ -175,7 +184,7 @@ def get_cooking_overview(start_date, end_date, filters):
     if user_ids:
         users = (
             supabase.table("user")
-            .select("id, name, last_name")
+            .select("id, name, last_name, " + ", ".join(ALLERGEN_KEYS))
             .in_("id", user_ids)
             .execute()
             .data
@@ -190,6 +199,25 @@ def get_cooking_overview(start_date, end_date, filters):
         return full or fn or ln or "Unknown"
 
     user_name_map = {u["id"]: _display_name(u) for u in users if u.get("id")}
+    user_map = {u["id"]: u for u in users if u.get("id")}
+
+    # =====================================================
+    # 3.8️⃣ Recipe-level allergen rollup — same recipe_allergen view every
+    # customer-facing surface (My Tastes, menu, order review) uses, so a
+    # "this client is allergic" flag here can never disagree with what the
+    # client themselves was shown. Alert-only: never filters/reorders recipes.
+    # =====================================================
+    recipe_allergen_rows = (
+        supabase.table("recipe_allergen")
+        .select("*")
+        .in_("recipe_id", recipe_ids)
+        .execute()
+        .data
+    ) if recipe_ids else []
+    recipe_allergen_keys_by_recipe = {
+        row["recipe_id"]: {k for k in ALLERGEN_KEYS if row.get(k)}
+        for row in (recipe_allergen_rows or [])
+    }
 
 
     # Group comments by recipe_id for fast lookup later
@@ -318,6 +346,31 @@ def get_cooking_overview(start_date, end_date, filters):
         earliest_date = min(dates)
 
         # ------------------------------------------
+        # 🟨 ALLERGEN CONFLICTS — which clients on this recipe declared an
+        # allergen this recipe actually contains. Alert-only; doesn't affect
+        # sorting/filtering above.
+        # ------------------------------------------
+        allergen_conflicts = []
+        recipe_allergen_keys = recipe_allergen_keys_by_recipe.get(recipe_id)
+        if recipe_allergen_keys:
+            recipe_user_ids = {
+                user_id_by_mpd[r["meal_plan_day_id"]]
+                for r in mpdr_for_recipe
+                if user_id_by_mpd.get(r["meal_plan_day_id"])
+            }
+            for uid in recipe_user_ids:
+                user = user_map.get(uid)
+                if not user:
+                    continue
+                hit = sorted(k for k in recipe_allergen_keys if user.get(k))
+                if hit:
+                    allergen_conflicts.append({
+                        "user_id": uid,
+                        "name": user_name_map.get(uid, "Unknown"),
+                        "allergens": hit,
+                    })
+
+        # ------------------------------------------
         # 🟦 RECIPE-LEVEL INGREDIENTS (sorted alphabetically)
         # ------------------------------------------
         recipe_ing_totals = defaultdict(float)
@@ -425,6 +478,7 @@ def get_cooking_overview(start_date, end_date, filters):
                 # days/clients being grouped here — staff must not trust an
                 # already-printed label showing pre-swap macros in that case.
                 "any_swapped": any(r.get("is_swapped") for r in mpdr_for_recipe),
+                "allergen_conflicts": allergen_conflicts,
             }
         )
 
