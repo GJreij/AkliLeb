@@ -6,8 +6,11 @@
 # relaxation fallback. If the wallet can't cover a price increase, the whole
 # operation hard-stops with a clear top-up amount.
 
+import logging
 from datetime import datetime, timezone
 from utils.supabase_client import supabase
+
+logger = logging.getLogger(__name__)
 from utils.dates import beirut_iso_date
 from services.mealplan_service import optimize_subrecipes
 from services.pricing_service import fetch_latest_prices
@@ -385,83 +388,127 @@ class DayEditService:
                     "error": f"Could not apply wallet adjustment: {e}",
                 }, 409
 
-        deleted_ids = {c["meal_plan_day_recipe_id"] for c in changes if c["action"] == "delete"}
-        replace_map = {c["meal_plan_day_recipe_id"]: c["new_recipe_id"] for c in changes if c["action"] == "replace"}
+        # Everything from here on writes the actual day change — the wallet
+        # has already been settled above. If any of these throws (network
+        # blip, DB error), the client must not end up charged/credited for
+        # an edit that never actually landed: reverse the wallet leg before
+        # returning, rather than leaving money moved with no corresponding
+        # meal change.
+        try:
+            deleted_ids = {c["meal_plan_day_recipe_id"] for c in changes if c["action"] == "delete"}
+            replace_map = {c["meal_plan_day_recipe_id"]: c["new_recipe_id"] for c in changes if c["action"] == "replace"}
 
-        if deleted_ids:
-            self.sb.table("meal_plan_day_recipe_serving").delete().in_(
-                "meal_plan_day_recipe_id", list(deleted_ids)
-            ).execute()
-            self.sb.table("meal_plan_day_recipe").delete().in_("id", list(deleted_ids)).execute()
+            if deleted_ids:
+                self.sb.table("meal_plan_day_recipe_serving").delete().in_(
+                    "meal_plan_day_recipe_id", list(deleted_ids)
+                ).execute()
+                self.sb.table("meal_plan_day_recipe").delete().in_("id", list(deleted_ids)).execute()
 
-        for mpdr_id, new_recipe_id in replace_map.items():
-            existing = ctx["by_id"][mpdr_id]
-            original_recipe_id = existing.get("original_recipe_id") or existing["recipe_id"]
-            self.sb.table("meal_plan_day_recipe").update({
-                "recipe_id": new_recipe_id,
-                "is_swapped": True,
-                "original_recipe_id": original_recipe_id,
-                "updated_at": now,
-            }).eq("id", mpdr_id).execute()
+            for mpdr_id, new_recipe_id in replace_map.items():
+                existing = ctx["by_id"][mpdr_id]
+                original_recipe_id = existing.get("original_recipe_id") or existing["recipe_id"]
+                self.sb.table("meal_plan_day_recipe").update({
+                    "recipe_id": new_recipe_id,
+                    "is_swapped": True,
+                    "original_recipe_id": original_recipe_id,
+                    "updated_at": now,
+                }).eq("id", mpdr_id).execute()
 
-        new_id_by_meal_key = {}
-        for i, c in enumerate(changes):
-            if c["action"] == "add":
-                ins = self.sb.table("meal_plan_day_recipe").insert({
-                    "meal_plan_day_id": meal_plan_day_id,
-                    "recipe_id": c["new_recipe_id"],
-                    "meal_type": c["meal_type"],
-                    "cooking_status": "pending",
-                    "packaging_status": "pending",
-                    "created_at": now,
-                }).execute()
-                new_id_by_meal_key[f"new_{i}"] = ins.data[0]["id"]
+            new_id_by_meal_key = {}
+            for i, c in enumerate(changes):
+                if c["action"] == "add":
+                    ins = self.sb.table("meal_plan_day_recipe").insert({
+                        "meal_plan_day_id": meal_plan_day_id,
+                        "recipe_id": c["new_recipe_id"],
+                        "meal_type": c["meal_type"],
+                        "cooking_status": "pending",
+                        "packaging_status": "pending",
+                        "created_at": now,
+                    }).execute()
+                    new_id_by_meal_key[f"new_{i}"] = ins.data[0]["id"]
 
-        subs_by_meal = {}
-        for s in ctx["optimized_subs"]:
-            subs_by_meal.setdefault(s["meal_name"], []).append(s)
+            subs_by_meal = {}
+            for s in ctx["optimized_subs"]:
+                subs_by_meal.setdefault(s["meal_name"], []).append(s)
 
-        for meal_key in ctx["recipes_by_meal"].keys():
-            mpdr_id = new_id_by_meal_key.get(meal_key, int(meal_key) if meal_key.isdigit() else None)
-            if mpdr_id is None:
-                continue
-            new_servings = subs_by_meal.get(meal_key, [])
-            self.sb.table("meal_plan_day_recipe_serving").delete().eq("meal_plan_day_recipe_id", mpdr_id).execute()
-            for s in new_servings:
-                macros = s["macros"]
-                self.sb.table("meal_plan_day_recipe_serving").insert({
-                    "meal_plan_day_recipe_id": mpdr_id,
-                    "subrecipe_id": s["subrecipe_id"],
-                    "recipe_subrecipe_serving_calculated": s["servings"],
-                    "kcal_calculated": macros.get("kcal"),
-                    "protein_calculated": macros.get("protein"),
-                    "carbs_calculated": macros.get("carbs"),
-                    "fat_calculated": macros.get("fat"),
-                    "cooking_status": "pending",
-                    "portioning_status": "pending",
-                    "created_at": now,
-                }).execute()
+            for meal_key in ctx["recipes_by_meal"].keys():
+                mpdr_id = new_id_by_meal_key.get(meal_key, int(meal_key) if meal_key.isdigit() else None)
+                if mpdr_id is None:
+                    continue
+                new_servings = subs_by_meal.get(meal_key, [])
+                self.sb.table("meal_plan_day_recipe_serving").delete().eq("meal_plan_day_recipe_id", mpdr_id).execute()
+                for s in new_servings:
+                    macros = s["macros"]
+                    self.sb.table("meal_plan_day_recipe_serving").insert({
+                        "meal_plan_day_recipe_id": mpdr_id,
+                        "subrecipe_id": s["subrecipe_id"],
+                        "recipe_subrecipe_serving_calculated": s["servings"],
+                        "kcal_calculated": macros.get("kcal"),
+                        "protein_calculated": macros.get("protein"),
+                        "carbs_calculated": macros.get("carbs"),
+                        "fat_calculated": macros.get("fat"),
+                        "cooking_status": "pending",
+                        "portioning_status": "pending",
+                        "created_at": now,
+                    }).execute()
 
-        # Keep daily_macro_order in sync with the day's new solved state —
-        # a correctness prerequisite for Swap, which reads this same row as
-        # its own target on any later swap for this day.
-        day_totals = ctx["day_totals"]
-        self.sb.table("daily_macro_order").update({
-            "protein_ordered": day_totals["protein"],
-            "carbs_ordered": day_totals["carbs"],
-            "fat_ordered": day_totals["fat"],
-            "kcal_ordered": day_totals["kcal"],
-        }).eq("id", ctx["day"]["daily_macro_order_id"]).execute()
+            # Keep daily_macro_order in sync with the day's new solved state —
+            # a correctness prerequisite for Swap, which reads this same row as
+            # its own target on any later swap for this day.
+            day_totals = ctx["day_totals"]
+            self.sb.table("daily_macro_order").update({
+                "protein_ordered": day_totals["protein"],
+                "carbs_ordered": day_totals["carbs"],
+                "fat_ordered": day_totals["fat"],
+                "kcal_ordered": day_totals["kcal"],
+            }).eq("id", ctx["day"]["daily_macro_order_id"]).execute()
 
-        log_res = self.sb.table("day_edit_log").insert({
-            "meal_plan_day_id": meal_plan_day_id,
-            "meal_plan_id": ctx["day"]["meal_plan_id"],
-            "user_id": user_id,
-            "changes": changes,
-            "price_delta": price_delta,
-            "summary": self._build_summary(changes, ctx["by_id"], ctx["recipe_by_id"]),
-            "created_at": now,
-        }).execute()
+            log_res = self.sb.table("day_edit_log").insert({
+                "meal_plan_day_id": meal_plan_day_id,
+                "meal_plan_id": ctx["day"]["meal_plan_id"],
+                "user_id": user_id,
+                "changes": changes,
+                "price_delta": price_delta,
+                "summary": self._build_summary(changes, ctx["by_id"], ctx["recipe_by_id"]),
+                "created_at": now,
+            }).execute()
+        except Exception as e:
+            return self._fail_after_wallet_settled(user_id, ctx, price_delta, e)
 
         result["edit_id"] = log_res.data[0]["id"] if log_res.data else None
         return result, 200
+
+    def _fail_after_wallet_settled(self, user_id, ctx, price_delta, error):
+        """The wallet leg of an edit already landed but writing the actual
+        day change then failed — reverse the wallet delta so the client is
+        never left charged/credited for an edit that didn't happen. If the
+        reversal itself fails, this is a real money/state mismatch that
+        needs a human, so say so plainly instead of quietly losing it."""
+        if price_delta == 0:
+            logger.error("Day edit failed after wallet no-op for user %s: %s", user_id, error)
+            return {"error": f"Could not complete this edit: {error}"}, 500
+        try:
+            self.sb.rpc("apply_meal_swap_wallet_delta", {
+                "p_user_id": user_id,
+                "p_price_delta": -price_delta,
+                "p_related_order_id": ctx["day"]["meal_plan_id"],
+                "p_note": f"Reversal: day edit on {ctx['day']['date']} failed after wallet settlement ({error})",
+                "p_type": "day_edit",
+            }).execute()
+        except Exception as reversal_error:
+            logger.critical(
+                "Day edit wallet reversal FAILED for user %s, meal_plan_id %s, price_delta %s: "
+                "original error=%s, reversal error=%s",
+                user_id, ctx["day"]["meal_plan_id"], price_delta, error, reversal_error,
+            )
+            return {
+                "error": (
+                    "Something went wrong confirming this edit, and we could not automatically undo the "
+                    "wallet charge. Please contact us on WhatsApp right away so we can fix your balance."
+                ),
+                "critical": True,
+            }, 500
+        logger.error("Day edit failed after wallet settlement for user %s, reversed cleanly: %s", user_id, error)
+        return {
+            "error": "Something went wrong confirming this edit — your wallet was not charged. Please try again.",
+        }, 500

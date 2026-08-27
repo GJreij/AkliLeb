@@ -20,8 +20,12 @@ def sum_macros(rows):
 
 
 def wallet_balance(sb, user_id) -> float:
-    res = sb.table("wallet_transactions").select("amount").eq("user_id", user_id).execute()
-    return round(sum(float(r["amount"]) for r in (res.data or [])), 2)
+    """Server-side SUM via get_wallet_balance() — a plain unpaginated
+    `.select("amount")` here would get silently truncated by PostgREST's
+    default row cap once a user's wallet_transactions history grows past it,
+    undercounting or overcounting the balance shown in a preview."""
+    res = sb.rpc("get_wallet_balance", {"p_user_id": user_id}).execute()
+    return round(float(res.data or 0), 2)
 
 
 def day_price_and_macros(serving_rows, day_recipes, macro_target, prices):
