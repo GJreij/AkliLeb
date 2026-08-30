@@ -52,6 +52,10 @@ class ClientMealsService:
             .eq("meal_plan.user_id", user_id)
             .gte("date", from_date)
             .lte("date", to_date)
+            # A cancelled day is replaced by a fresh meal_plan_day row on the
+            # same date (see order/cancellation flow), not deleted — without
+            # this filter both rows show up and double the meals on that date.
+            .not_.in_("status", ["cancelled", "cancellation_pending"])
             .order("date")
             .execute()
         )
