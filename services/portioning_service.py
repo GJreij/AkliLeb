@@ -75,10 +75,6 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
             "extra_found": extra
         }
 
-    total_subrecipe_servings = sum(
-        row.get("recipe_subrecipe_serving_calculated") or 0 for row in servings
-    )
-
     # --- 2. meal_plan_day_recipe → meal_plan_day_id ---
     # Also pulls recipe_id/meal_type so each client line can show which meal
     # this portion belongs to — the same subrecipe can appear in two
@@ -116,11 +112,30 @@ def get_portioning_summary(subrecipe_id, meal_plan_day_recipe_ids):
     # --- 3. meal_plan_day ---
     mpd_res = (
         supabase.table("meal_plan_day")
-        .select("id, date, delivery_id")
+        .select("id, date, delivery_id, status")
         .in_("id", list(mpd_ids))
         .execute()
     )
-    mpd_by_id = {row["id"]: row for row in (mpd_res.data or [])}
+    # Cancelled/cancellation-pending orders must not be portioned or
+    # labeled — same rule the cooking/packaging boards apply. A caller can
+    # hand us a meal_plan_day_recipe_id that was cancelled after it was
+    # fetched (e.g. the cooking board load), so this has to be re-checked
+    # here rather than trusted from the input.
+    mpd_by_id = {
+        row["id"]: row for row in (mpd_res.data or [])
+        if row.get("status") not in ("cancellation_pending", "cancelled")
+    }
+
+    servings = [
+        s for s in servings
+        if mpdr_by_id.get(s["meal_plan_day_recipe_id"], {}).get("meal_plan_day_id") in mpd_by_id
+    ]
+    if not servings:
+        return None, "No servings found"
+
+    total_subrecipe_servings = sum(
+        row.get("recipe_subrecipe_serving_calculated") or 0 for row in servings
+    )
 
     # --- 4. deliveries ---
     delivery_ids = {
