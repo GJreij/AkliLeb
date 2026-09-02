@@ -137,10 +137,14 @@ serve(async (req) => {
   const userAllergenFlags = (user ?? {}) as Record<string, boolean | null>;
   const declaredAllergens = ALLERGEN_KEYS.filter(k => userAllergenFlags[k]);
   if (declaredAllergens.length > 0 && mealPlanDayIds.length > 0) {
-    const { data: dayRecipes } = await supabase
+    const { data: dayRecipes, error: dayRecipesError } = await supabase
       .from("meal_plan_day_recipe")
       .select("recipe_id, meal_plan_day_id, label, recipe:recipe_id(name)")
       .in("meal_plan_day_id", mealPlanDayIds);
+    // Errors here previously vanished silently: dayRecipes would fall back
+    // to [] below and the allergen section would just be omitted from the
+    // email with nothing to say the check didn't actually run.
+    if (dayRecipesError) console.error("Failed to fetch day recipes for allergen check:", dayRecipesError.message);
 
     type DayRecipeRow = {
       recipe_id: number;
@@ -151,10 +155,11 @@ serve(async (req) => {
     const dayRecipeRows = (dayRecipes ?? []) as DayRecipeRow[];
     const recipeIds = Array.from(new Set(dayRecipeRows.map(r => r.recipe_id)));
     if (recipeIds.length > 0) {
-      const { data: allergenRows } = await supabase
+      const { data: allergenRows, error: allergenRowsError } = await supabase
         .from("recipe_allergen")
         .select("*")
         .in("recipe_id", recipeIds);
+      if (allergenRowsError) console.error("Failed to fetch recipe_allergen rows for allergen check:", allergenRowsError.message);
 
       const conflictKeysByRecipe = new Map<number, string[]>();
       for (const row of allergenRows ?? []) {

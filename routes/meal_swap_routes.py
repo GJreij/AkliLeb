@@ -67,11 +67,15 @@ def confirm_meal_swap():
         )
 
         if status_code == 200:
+            # price_delta lives under options.<mode>, not at the top level of
+            # the response (confirm() doesn't hoist it) — read it from there,
+            # otherwise this always logs null.
+            price_delta = (result.get("options", {}).get(mode) or {}).get("price_delta")
             log_event(user_id, "meal_swapped", {
                 "meal_plan_day_id": meal_plan_day_id,
                 "meal_plan_day_recipe_id": meal_plan_day_recipe_id,
                 "new_recipe_id": new_recipe_id,
-                "price_delta": result.get("price_delta"),
+                "price_delta": price_delta,
             })
         else:
             log_event(user_id, "api_error", {"route": "/modify_meal/confirm", "status_code": status_code, "error": result.get("error")})

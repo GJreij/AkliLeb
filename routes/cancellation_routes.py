@@ -55,13 +55,19 @@ def preview_cancellation_discount_impact():
             ("user_id", user_id), ("meal_plan_id", meal_plan_id), ("meal_plan_day_ids", meal_plan_day_ids),
         ) if not v]
         if missing:
+            log_event(user_id, "api_error", {"route": "/preview_cancellation_discount_impact", "status_code": 400, "reason": "missing_fields", "missing_fields": missing})
             return jsonify({"error": "Missing required fields", "missing_fields": missing}), 400
 
         result, status_code = cancellation_service.preview_discount_impact(user_id, meal_plan_id, meal_plan_day_ids)
+
+        if status_code != 200:
+            log_event(user_id, "api_error", {"route": "/preview_cancellation_discount_impact", "status_code": status_code, "error": result.get("error")})
+
         return jsonify(result), status_code
 
     except Exception as e:
         logger.error("preview_cancellation_discount_impact failed: %s\n%s", str(e), traceback.format_exc())
+        log_event(None, "api_error", {"route": "/preview_cancellation_discount_impact", "status_code": 500, "error": str(e)})
         return jsonify({"error": "An unexpected error occurred while checking this cancellation.", "details": str(e)}), 500
 
 
@@ -73,6 +79,7 @@ def decide_cancellation():
     # scoped to just this one new endpoint, not a fix for Flask auth broadly.
     provided_secret = request.headers.get("X-Internal-Admin-Secret", "")
     if not INTERNAL_ADMIN_SECRET or provided_secret != INTERNAL_ADMIN_SECRET:
+        log_event(None, "api_error", {"route": "/admin/decide_cancellation", "status_code": 401, "error": "Unauthorized"})
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
@@ -89,6 +96,7 @@ def decide_cancellation():
             ("decided_by", decided_by),
         ) if not v]
         if missing:
+            log_event(decided_by, "api_error", {"route": "/admin/decide_cancellation", "status_code": 400, "reason": "missing_fields", "missing_fields": missing})
             return jsonify({"error": "Missing required fields", "missing_fields": missing}), 400
 
         result, status_code = cancellation_service.decide(
@@ -99,11 +107,18 @@ def decide_cancellation():
             refund_amount=refund_amount,
         )
 
-        log_event(decided_by, "cancellation_decided", {
-            "cancellation_request_id": cancellation_request_id,
-            "decision": decision,
-            "status_code": status_code,
-        })
+        # Mirror every other route's convention: a real outcome event on
+        # success, api_error on failure — previously this logged
+        # "cancellation_decided" even for a 400/404/409 rejection, making it
+        # indistinguishable from an actual decision in analytics.
+        if status_code == 200:
+            log_event(decided_by, "cancellation_decided", {
+                "cancellation_request_id": cancellation_request_id,
+                "decision": decision,
+                "discount_correction_applied": (result.get("discount_correction") or {}).get("applied"),
+            })
+        else:
+            log_event(decided_by, "api_error", {"route": "/admin/decide_cancellation", "status_code": status_code, "error": result.get("error")})
 
         return jsonify(result), status_code
 

@@ -1,10 +1,13 @@
 # services/cancellation_service.py
 
 import os
+import logging
 from datetime import datetime, timezone
 from utils.supabase_client import supabase
 from utils.dates import beirut_iso_date
 from services.volume_discount_service import apply_volume_discount
+
+logger = logging.getLogger(__name__)
 
 INTERNAL_ADMIN_SECRET = os.getenv("INTERNAL_ADMIN_SECRET", "")
 
@@ -310,6 +313,16 @@ class CancellationService:
             # likely cause is the RPC's own insufficient-balance guard (e.g.
             # a debit correction on an empty wallet). Surface it clearly to
             # the admin instead of silently losing it or blowing up decide().
+            # This is the only record of the failure server-side — the route
+            # only logs a generic "cancellation_decided" success event, so
+            # without this line an admin who doesn't read the response body's
+            # discount_correction field would never know the wallet is now
+            # out of sync with the order.
+            logger.critical(
+                "Volume discount correction FAILED after cancellation approval for meal_plan_id %s, "
+                "user_id %s, amount %s: %s",
+                meal_plan_id, user_id, correction, e,
+            )
             note = (
                 f"Volume discount adjustment needed: this order now has {remaining_count} active day(s) "
                 f"after a cancellation, which changed the automatic discount. A ${abs(correction):.2f} "
