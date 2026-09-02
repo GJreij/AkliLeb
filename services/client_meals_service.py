@@ -40,7 +40,7 @@ class ClientMealsService:
                 meal_plan_day_recipe(
                     meal_type,
                     recipe_id,
-                    recipe(name),
+                    recipe!user_meal_plan_day_recipe_recipe_id_fkey(name),
                     meal_plan_day_recipe_serving(
                         kcal_calculated,
                         protein_calculated,
