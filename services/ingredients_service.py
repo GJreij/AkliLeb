@@ -25,6 +25,30 @@ def get_ingredients_to_buy(start_date, end_date, recipe=None, client=None, deliv
         return []
 
     meal_plan_day_ids = [d["meal_plan_day_id"] for d in deliveries if d["meal_plan_day_id"]]
+    if not meal_plan_day_ids:
+        return []
+
+    # ---------------------------------------------------------
+    # 1.5. Drop cancelled/cancellation-pending meal_plan_days — don't buy
+    # ingredients for something that might not ship. Same rule the cooking
+    # board applies (see cooking_service.get_cooking_overview).
+    # ---------------------------------------------------------
+    mpd = (
+        supabase
+        .table("meal_plan_day")
+        .select("id, status")
+        .in_("id", meal_plan_day_ids)
+        .execute()
+        .data
+    ) or []
+
+    meal_plan_day_ids = [
+        x["id"] for x in mpd
+        if x.get("status") not in ("cancellation_pending", "cancelled")
+    ]
+
+    if not meal_plan_day_ids:
+        return []
 
     # ---------------------------------------------------------
     # 2. Fetch meal_plan_day_recipe rows for these days
