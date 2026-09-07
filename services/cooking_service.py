@@ -350,14 +350,20 @@ def get_cooking_overview(start_date, end_date, filters):
         # allergen this recipe actually contains. Alert-only; doesn't affect
         # sorting/filtering above.
         # ------------------------------------------
+        # Users actually eating THIS recipe on the filtered dates — comments
+        # and allergen conflicts must both be scoped to this set, not to
+        # every user with a delivery somewhere in the date range (that was
+        # showing e.g. a client's tawouk comment on tawouk cards even on
+        # days that client wasn't having tawouk).
+        recipe_user_ids = {
+            user_id_by_mpd[r["meal_plan_day_id"]]
+            for r in mpdr_for_recipe
+            if user_id_by_mpd.get(r["meal_plan_day_id"])
+        }
+
         allergen_conflicts = []
         recipe_allergen_keys = recipe_allergen_keys_by_recipe.get(recipe_id)
         if recipe_allergen_keys:
-            recipe_user_ids = {
-                user_id_by_mpd[r["meal_plan_day_id"]]
-                for r in mpdr_for_recipe
-                if user_id_by_mpd.get(r["meal_plan_day_id"])
-            }
             for uid in recipe_user_ids:
                 user = user_map.get(uid)
                 if not user:
@@ -473,7 +479,10 @@ def get_cooking_overview(start_date, end_date, filters):
                 "earliest_date": earliest_date,
                 "ingredients_needed": ingredient_list,
                 "subrecipes": subrecipe_list,
-                "comments": comments_by_recipe.get(recipe_id, []),
+                "comments": [
+                    c for c in comments_by_recipe.get(recipe_id, [])
+                    if c["user_id"] in recipe_user_ids
+                ],
                 # True if this recipe was swapped in on ANY of the underlying
                 # days/clients being grouped here — staff must not trust an
                 # already-printed label showing pre-swap macros in that case.
