@@ -14,6 +14,27 @@ checkout_bp = Blueprint("checkout", __name__)
 DELIVERY_DAY_MINIMUM = 25  # if a given day's total < 25, delivery applies for that day
 
 
+def _apply_minimum_order_fee(price, minimum_order_price):
+    """
+    Enforce a floor on a food/packaging price (post-discount, PRE-delivery)
+    so a tiny order — or a single tiny DAY inside an otherwise normal order
+    — can't check out for a few cents. Applied per day, not to the order
+    total: a $1 day shouldn't get a free pass just because other days in the
+    same order are full price — each day still ties up its own delivery
+    slot. Delivery is computed independently, per day, elsewhere in this
+    route, and stacks on top of whatever this returns — it is NOT part of
+    the floor itself.
+
+    Returns (adjusted_price, minimum_order_fee) — the fee is the shortfall
+    added to reach the floor, or 0.0 if no top-up was needed (including when
+    minimum_order_price is unset/0, i.e. disabled).
+    """
+    if not minimum_order_price or price >= minimum_order_price:
+        return price, 0.0
+    fee = round(minimum_order_price - price, 2)
+    return minimum_order_price, fee
+
+
 @checkout_bp.route("/checkout_summary", methods=["POST"])
 def checkout_summary():
     data = request.get_json()
@@ -55,6 +76,7 @@ def checkout_summary():
     recipe_packaging_price = price_data.get("recipe_packaging_price", 0) or 0
     subrecipe_packaging_price = price_data.get("subrecipe_packaging_price", 0) or 0
     delivery_price_per_day = price_data.get("delivery_price", 0) or 0
+    minimum_order_price = float(price_data.get("minimum_order_price") or 0)
 
     # Shared `prices` dict shape expected by pricing_service's compute_* helpers
     prices = {
@@ -250,6 +272,8 @@ def checkout_summary():
 
     delivery_days = 0
     delivery_fee = 0
+    total_minimum_order_fee = 0.0
+    minimum_order_days_affected = 0
 
     final_daily_breakdown = []
     for day in discounted_daily_price_details:
@@ -267,14 +291,32 @@ def checkout_summary():
             delivery_days += 1
             delivery_fee += day_delivery_fee
 
+        # Minimum order enforcement — PER DAY, not on the order total. A day
+        # priced under this floor isn't worth reserving a delivery slot for,
+        # even inside a long multi-day order (e.g. one $1 snack day shouldn't
+        # skate by just because the other 19 days of a 20-day order are full
+        # price). Added on top of the real food price rather than replacing
+        # it — discounted_total (day["total_price"]) stays the true
+        # post-discount food/packaging cost, since that's what downstream
+        # commission/discount-correction math reads off the payment row this
+        # day becomes; the fee rides in total_price_with_delivery only, same
+        # treatment as delivery_fee.
+        _, day_minimum_fee = _apply_minimum_order_fee(discounted_total, minimum_order_price)
+        if day_minimum_fee > 0:
+            total_minimum_order_fee += day_minimum_fee
+            minimum_order_days_affected += 1
+
         final_daily_breakdown.append({
             **day,
             "delivery_applied": needs_delivery,
             "delivery_fee": round(day_delivery_fee, 2),
-            "total_price_with_delivery": round(discounted_total + day_delivery_fee, 2),  # optional, very useful for UX
+            "minimum_order_fee": round(day_minimum_fee, 2),
+            "total_price_with_delivery": round(discounted_total + day_delivery_fee + day_minimum_fee, 2),
         })
 
-    final_price_with_delivery = round(final_price_after_discount + delivery_fee, 2)
+    total_minimum_order_fee = round(total_minimum_order_fee, 2)
+    final_price_before_delivery = round(final_price_after_discount + total_minimum_order_fee, 2)
+    final_price_with_delivery = round(final_price_before_delivery + delivery_fee, 2)
 
 
 
@@ -347,7 +389,7 @@ def checkout_summary():
 
             "total_price_before_discount": round(total_price, 2),
             "discount_amount": round(total_discount, 2),
-            "final_price_before_delivery": final_price_after_discount,
+            "final_price_before_delivery": final_price_before_delivery,
 
             "volume_discount": {
                 "amount": volume_discount_amount,
@@ -355,6 +397,13 @@ def checkout_summary():
                 "min_order_days": volume_rule["min_order_days"] if volume_rule else None,
             },
             "promo_discount_amount": promo_discount_amount,
+
+            "minimum_order": {
+                "threshold": minimum_order_price,
+                "fee_applied": total_minimum_order_fee,
+                "is_applied": total_minimum_order_fee > 0,
+                "days_affected": minimum_order_days_affected,
+            },
 
             "delivery": {
                 "fee_per_day": delivery_price_per_day,
