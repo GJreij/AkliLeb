@@ -399,7 +399,12 @@ Prices a generated plan: per-gram macro cost, packaging, automatic volume discou
 delivery fee, and both a per-day (ops) and single weekly (customer-facing) total.
 
 **Body:** `user_id` (required), `final_plan` (required — a `GenerateMealPlanResponse`),
-`promo_code` (optional string).
+`promo_code` (optional string), `delivery_address_id` (optional int — a saved
+`user_delivery_address.id` belonging to `user_id`). When given, `fee_per_day` in the response
+checks for an admin-set `delivery_fee_override` on that address first, falling back to the flat
+`macro_price.delivery_price` for everyone else (see
+`services/pricing_service.py:resolve_delivery_fee_per_day`). Omit it only for the pre-checkout
+price estimator, which has no address yet.
 
 **200 response** (trimmed for length — see `routes/checkout_summary.py` STEP 6 for the exact
 builder):
