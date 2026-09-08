@@ -187,9 +187,52 @@ class CancellationService:
                 "status": "cancelled", "updated_at": now,
             }).in_("id", delivery_ids).eq("status", "cancellation_pending").execute()
 
+        commission_voided = self._void_commission_for_cancelled_days(day_ids)
         discount_correction = self._apply_volume_discount_correction(req["meal_plan_id"], req["user_id"])
 
-        return {"success": True, "status": decision, "discount_correction": discount_correction}, 200
+        return {
+            "success": True,
+            "status": decision,
+            "discount_correction": discount_correction,
+            "commission_voided": commission_voided,
+        }, 200
+
+    def _void_commission_for_cancelled_days(self, day_ids):
+        """
+        A cancelled day's `payment` row must stop contributing to
+        AffiliateService.get_affiliate_commission_summary — that reads
+        commission_amount off `payment` keyed only by status ("paid"/
+        "pending"), with no awareness of the order itself being cancelled.
+        Without this, a day that already had (or was still accruing) a
+        commission snapshot would keep counting toward the affiliate's
+        earned/owed balance forever, even after the order was cancelled and
+        the client refunded/credited back.
+
+        affiliate_id and commission_rate are left untouched — audit trail of
+        which affiliate/rate this day was under — only the owed amount is
+        zeroed. Scoped to rows that actually had a commission (skips
+        non-affiliate orders, where commission_amount is already null).
+        """
+        if not day_ids:
+            return None
+
+        rows_res = (
+            self.sb.table("payment")
+            .select("id, commission_amount")
+            .in_("meal_plan_day_id", day_ids)
+            .not_.is_("commission_amount", None)
+            .execute()
+        )
+        rows = rows_res.data or []
+        if not rows:
+            return None
+
+        voided_total = round(sum(float(r["commission_amount"] or 0) for r in rows), 2)
+        self.sb.table("payment").update({"commission_amount": 0}).in_(
+            "id", [r["id"] for r in rows]
+        ).execute()
+
+        return {"voided_count": len(rows), "voided_amount": voided_total}
 
     def _compute_discount_correction(self, meal_plan_id, excluded_day_ids):
         """

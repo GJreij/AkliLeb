@@ -116,6 +116,7 @@ def decide_cancellation():
                 "cancellation_request_id": cancellation_request_id,
                 "decision": decision,
                 "discount_correction_applied": (result.get("discount_correction") or {}).get("applied"),
+                "commission_voided_amount": (result.get("commission_voided") or {}).get("voided_amount"),
             })
         else:
             log_event(decided_by, "api_error", {"route": "/admin/decide_cancellation", "status_code": status_code, "error": result.get("error")})
