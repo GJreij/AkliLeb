@@ -3,7 +3,7 @@ import statistics
 from utils.supabase_client import supabase
 from services.promo_service import validate_and_apply_promo_code
 from services.volume_discount_service import apply_volume_discount
-from services.pricing_service import compute_macro_cost, compute_packaging_cost
+from services.pricing_service import compute_macro_cost, compute_packaging_cost, resolve_delivery_fee_per_day
 from utils.event_logger import log_event
 
 checkout_bp = Blueprint("checkout", __name__)
@@ -41,6 +41,7 @@ def checkout_summary():
     user_id = data.get("user_id")
     plan = data.get("final_plan")
     promo_code = data.get("promo_code")
+    delivery_address_id = data.get("delivery_address_id")
 
     if not user_id or not plan:
         return jsonify({"error": "Missing user_id or final_plan"}), 400
@@ -75,7 +76,8 @@ def checkout_summary():
     day_packaging_price = price_data.get("day_packaging_price", 0) or 0
     recipe_packaging_price = price_data.get("recipe_packaging_price", 0) or 0
     subrecipe_packaging_price = price_data.get("subrecipe_packaging_price", 0) or 0
-    delivery_price_per_day = price_data.get("delivery_price", 0) or 0
+    flat_delivery_price = price_data.get("delivery_price", 0) or 0
+    delivery_price_per_day, delivery_fee_is_override = resolve_delivery_fee_per_day(delivery_address_id, flat_delivery_price)
     minimum_order_price = float(price_data.get("minimum_order_price") or 0)
 
     # Shared `prices` dict shape expected by pricing_service's compute_* helpers
@@ -412,6 +414,10 @@ def checkout_summary():
                 "delivery_fee": round(delivery_fee, 2),
                 "is_free_delivery": delivery_fee == 0,
                 "waived_by_promo": waives_delivery,
+                # This address has an admin-set fee different from everyone
+                # else's — the checkout UI should call this out rather than
+                # just showing a different number with no explanation.
+                "is_custom_fee": delivery_fee_is_override,
             },
 
             "final_price": final_price_with_delivery,

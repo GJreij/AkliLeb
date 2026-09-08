@@ -9,10 +9,10 @@ just because other days in the same order are full price.
 
 _apply_minimum_order_fee is a pure function — unit-tested directly. The
 route itself is exercised through Flask's test client with supabase/promo/
-volume-discount dependencies mocked out (no live DB), to lock in that a
-tiny day gets bumped independently of a normal day in the same order, and
-that the aggregate total still reconciles with the per-day sum (this
-second part matters because order_service.py bills off the per-day
+volume-discount/delivery-fee dependencies mocked out (no live DB), to lock
+in that a tiny day gets bumped independently of a normal day in the same
+order, and that the aggregate total still reconciles with the per-day sum
+(this second part matters because order_service.py bills off the per-day
 total_price_with_delivery values, not the aggregate field).
 
 Run from the mealplanner-flask/ directory:
@@ -124,9 +124,10 @@ class CheckoutSummaryPerDayMinimumTests(unittest.TestCase):
     @patch("routes.checkout_summary.log_event")
     @patch("routes.checkout_summary.validate_and_apply_promo_code", return_value=NO_PROMO_RESULT)
     @patch("routes.checkout_summary.apply_volume_discount", return_value={"discount_amount": 0.0, "rule": None})
+    @patch("routes.checkout_summary.resolve_delivery_fee_per_day", return_value=(2.0, False))
     @patch("routes.checkout_summary.supabase")
     def test_tiny_day_is_floored_independently_of_a_normal_day(
-        self, mock_supabase, mock_volume, mock_promo, mock_log_event
+        self, mock_supabase, mock_resolve_delivery, mock_volume, mock_promo, mock_log_event
     ):
         mock_supabase.table.side_effect = _table_router
 
@@ -191,9 +192,10 @@ class CheckoutSummaryPerDayMinimumTests(unittest.TestCase):
     @patch("routes.checkout_summary.log_event")
     @patch("routes.checkout_summary.validate_and_apply_promo_code", return_value=NO_PROMO_RESULT)
     @patch("routes.checkout_summary.apply_volume_discount", return_value={"discount_amount": 0.0, "rule": None})
+    @patch("routes.checkout_summary.resolve_delivery_fee_per_day", return_value=(2.0, False))
     @patch("routes.checkout_summary.supabase")
     def test_all_normal_days_never_trigger_the_floor(
-        self, mock_supabase, mock_volume, mock_promo, mock_log_event
+        self, mock_supabase, mock_resolve_delivery, mock_volume, mock_promo, mock_log_event
     ):
         mock_supabase.table.side_effect = _table_router
 

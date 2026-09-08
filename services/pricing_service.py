@@ -58,6 +58,36 @@ def fetch_latest_prices() -> dict:
     }
 
 
+def resolve_delivery_fee_per_day(address_id: int | None, fallback_fee: float) -> tuple[float, bool]:
+    """
+    Resolve the per-day delivery fee for a given address:
+      1. delivery_fee_override for this address (admin-set, exact) — the only
+         way a specific address's fee ever differs from everyone else's.
+      2. fallback_fee (the flat macro_price.delivery_price) — used for
+         everyone without an override, and when no address_id is given
+         (e.g. the pre-checkout price estimator).
+
+    Returns (fee_per_day, is_override) — is_override tells the caller whether
+    this address is being charged something other than the standard fee, so
+    the checkout UI can call that out to the client instead of silently
+    showing a different number.
+    """
+    if not address_id:
+        return fallback_fee, False
+
+    override_resp = (
+        supabase.table("delivery_fee_override")
+        .select("fee_per_day")
+        .eq("address_id", address_id)
+        .limit(1)
+        .execute()
+    )
+    if override_resp.data:
+        return float(override_resp.data[0]["fee_per_day"]), True
+
+    return fallback_fee, False
+
+
 def compute_macro_cost(
     *,
     protein_g: float,
