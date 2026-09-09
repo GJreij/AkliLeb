@@ -189,5 +189,115 @@ class DecideWiresCommissionVoidingTests(unittest.TestCase):
         self.assertNotIn("commission_voided", result)
 
 
+class ComputeDiscountCorrectionTests(unittest.TestCase):
+    """Regression tests for _compute_discount_correction.
+
+    Bug: the function compared a freshly-recomputed VOLUME-ONLY discount
+    against `payment.discount_amount`, which is volume discount + promo-code
+    discount combined. Any order with a stacked promo code that lost a day
+    got the entire promo discount clawed back as if it were an "overpaid"
+    volume discount, even when the volume-discount tier never actually
+    changed. Fixed by splitting `volume_discount_amount` out on `payment`
+    and correcting only that portion.
+
+    These are the real numbers from the incident: a 16-day order (10%
+    volume discount, 10-day threshold) stacked with a 10% promo code,
+    dropping to 15 remaining days after a 1-day cancellation — still
+    comfortably over the 10-day threshold, so the volume discount itself
+    should not change at all.
+    """
+
+    def _service(self, meal_plan_day_rows):
+        svc = CancellationService()
+        svc.sb = FakeSupabase({"meal_plan_day": FakeResponse(meal_plan_day_rows)})
+        return svc
+
+    def _day(self, id, status, original_amount, discount_amount, volume_discount_amount, promo_discount_amount):
+        return {
+            "id": id,
+            "status": status,
+            "payment": {
+                "amount": original_amount - discount_amount,
+                "original_amount": original_amount,
+                "discount_amount": discount_amount,
+                "volume_discount_amount": volume_discount_amount,
+                "promo_discount_amount": promo_discount_amount,
+                "delivery_fee_amount": 2.0,
+            },
+        }
+
+    def test_stacked_promo_code_is_not_clawed_back_when_volume_tier_unchanged(self):
+        # 2 remaining days, each combining a 10% volume discount ($10) with
+        # a 20% promo code ($20) — combined discount_amount is $30/day, but
+        # only $10/day of that is volume discount.
+        rows = [
+            self._day(1, "cancelled", 100.0, 30.0, 10.0, 20.0),
+            self._day(2, "pending", 100.0, 30.0, 10.0, 20.0),
+            self._day(3, "pending", 100.0, 30.0, 10.0, 20.0),
+        ]
+        svc = self._service(rows)
+
+        # apply_volume_discount is mocked rather than hitting the real
+        # automatic_discount_rules table — this test only needs to know
+        # the volume tier's recomputed amount ($20, unchanged), not
+        # exercise the rule lookup itself.
+        with patch(
+            "services.cancellation_service.apply_volume_discount",
+            return_value={"discount_amount": 20.0, "rule": None},
+        ):
+            correction = svc._compute_discount_correction(meal_plan_id=251, excluded_day_ids=set())
+
+        # Volume discount recomputes to the same $20 total it already was
+        # (old_volume_discount_total = 10+10 = 20) — nothing to correct.
+        # Before the fix, this compared against the combined discount_amount
+        # (30+30=60) and would have wrongly clawed back $40 of promo code.
+        self.assertIsNone(correction)
+
+    def test_volume_tier_actually_shrinking_still_corrects_the_volume_portion_only(self):
+        # Same stacked setup, but this time the volume discount genuinely
+        # drops (e.g. a real tier boundary crossed) — the fix should still
+        # charge the real $5 volume-tier difference, not touch the promo
+        # portion at all.
+        rows = [
+            self._day(1, "cancelled", 100.0, 30.0, 10.0, 20.0),
+            self._day(2, "pending", 100.0, 30.0, 10.0, 20.0),
+            self._day(3, "pending", 100.0, 30.0, 10.0, 20.0),
+        ]
+        svc = self._service(rows)
+
+        with patch(
+            "services.cancellation_service.apply_volume_discount",
+            return_value={"discount_amount": 15.0, "rule": None},
+        ):
+            correction = svc._compute_discount_correction(meal_plan_id=251, excluded_day_ids=set())
+
+        self.assertEqual(correction, {"remaining_count": 2, "amount": 5.0})
+
+    def test_old_orders_without_the_volume_split_are_skipped_not_guessed(self):
+        # Orders placed before volume_discount_amount/promo_discount_amount
+        # started being recorded have those as null — there's no reliable
+        # way to isolate the volume-only portion, so skip rather than fall
+        # back to the old (buggy) combined-discount comparison.
+        rows = [
+            {
+                "id": 1,
+                "status": "pending",
+                "payment": {
+                    "amount": 15.0,
+                    "original_amount": 18.0,
+                    "discount_amount": 3.0,
+                    "volume_discount_amount": None,
+                    "promo_discount_amount": None,
+                    "delivery_fee_amount": 2.0,
+                },
+            }
+        ]
+        svc = self._service(rows)
+
+        correction = svc._compute_discount_correction(meal_plan_id=999, excluded_day_ids=set())
+
+        self.assertIsNone(correction)
+
+
 if __name__ == "__main__":
     unittest.main()

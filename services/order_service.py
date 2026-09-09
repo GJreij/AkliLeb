@@ -635,6 +635,16 @@ class OrderService:
         commission_rate = price_breakdown.get("commission_rate")
         wallet_allocation_by_day = wallet_allocation_by_day or {}
 
+        # Order-level discount totals, to be allocated across days below in
+        # proportion to each day's own pre-discount price — same
+        # distribution the discount_ratio in checkout_summary.py already
+        # applies uniformly. Needed so a later partial cancellation can
+        # recompute and correct the volume-discount portion alone, without
+        # touching the promo-code portion (see CancellationService.
+        # _compute_discount_correction).
+        order_total_before_discount = float(price_breakdown.get("total_price_before_discount") or 0)
+        order_volume_discount = float((price_breakdown.get("volume_discount") or {}).get("amount") or 0)
+
         now = datetime.utcnow().isoformat()
         topup_amount = round(float(topup_amount or 0), 2)
 
@@ -684,6 +694,18 @@ class OrderService:
             )
             delivery_fee_amount = round(float(day_data.get("delivery_fee") or 0), 2)
 
+            # This day's share of the order-level volume discount, by its
+            # share of the order's pre-discount total. promo_discount_amount
+            # is the remainder rather than an independent proportional
+            # calc, so the two always sum to exactly discount_amount above
+            # (no rounding drift between the split and the total).
+            if order_total_before_discount > 0:
+                day_share = float(original_amount or 0) / order_total_before_discount
+                volume_discount_amount = round(order_volume_discount * day_share, 2)
+            else:
+                volume_discount_amount = 0.0
+            promo_discount_amount = round(discount_amount - volume_discount_amount, 2)
+
             payment_payload.append(
                 {
                     "ordered_user_id": ordered_user_id,
@@ -699,6 +721,8 @@ class OrderService:
                     "commission_amount": commission_amount,
                     "original_amount": original_amount,
                     "discount_amount": discount_amount,
+                    "volume_discount_amount": volume_discount_amount,
+                    "promo_discount_amount": promo_discount_amount,
                     "delivery_fee_amount": delivery_fee_amount,
                     "created_at": now,
                 }

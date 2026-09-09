@@ -243,15 +243,32 @@ class CancellationService:
         so a preview can pass the days currently being considered without
         them needing to be cancelled in the DB yet.
 
+        Only the volume-discount portion of each day's discount is ever
+        recomputed/corrected here — `payment.discount_amount` is volume
+        discount + promo-code discount combined, and a promo code's
+        eligibility doesn't change just because the order got shorter. Using
+        the combined figure would claw back the customer's promo discount
+        every time this fires, even when the volume-discount tier itself
+        never moved (see the incident this was split out to fix: a 16→15
+        day partial cancellation, still comfortably over the 10-day
+        threshold either way, wrongly "corrected" $25.44 that was actually
+        the customer's stacked promo code, not a lost volume discount).
+
         Returns {"remaining_count": int, "amount": float} (amount >0 means
-        the discount shrank and the client owes more) or None if there's
-        nothing to correct, or the order predates original_amount/
-        discount_amount being recorded on `payment` (nothing reliable to
-        recompute against).
+        the volume discount shrank and the client owes more) or None if
+        there's nothing to correct, or the order predates original_amount/
+        volume_discount_amount being recorded on `payment` (nothing
+        reliable to recompute against — older orders never persisted the
+        volume/promo split, so there's no safe way to isolate just the
+        volume portion for them).
         """
         days_res = (
             self.sb.table("meal_plan_day")
-            .select("id, status, payment(amount, original_amount, discount_amount, delivery_fee_amount)")
+            .select(
+                "id, status, "
+                "payment(amount, original_amount, discount_amount, "
+                "volume_discount_amount, promo_discount_amount, delivery_fee_amount)"
+            )
             .eq("meal_plan_id", meal_plan_id)
             .execute()
         )
@@ -264,18 +281,21 @@ class CancellationService:
             rows = p if isinstance(p, list) else ([p] if p else [])
             remaining_payments.extend(rows)
 
-        if not remaining_payments or any(p.get("original_amount") is None for p in remaining_payments):
+        if not remaining_payments or any(
+            p.get("original_amount") is None or p.get("volume_discount_amount") is None
+            for p in remaining_payments
+        ):
             return None
 
         remaining_count = len(remaining_payments)
         remaining_original_total = sum(float(p["original_amount"]) for p in remaining_payments)
-        old_discount_total = sum(float(p.get("discount_amount") or 0) for p in remaining_payments)
+        old_volume_discount_total = sum(float(p.get("volume_discount_amount") or 0) for p in remaining_payments)
 
         new_discount = apply_volume_discount(remaining_original_total, remaining_count)["discount_amount"]
-        correction = round(old_discount_total - new_discount, 2)  # >0: discount shrank, client owes more
+        correction = round(old_volume_discount_total - new_discount, 2)  # >0: volume discount shrank, client owes more
 
-        # old_discount_total is a sum of independently-rounded per-day cents
-        # from order time — that alone can drift by up to ~$0.005/day even
+        # old_volume_discount_total is a sum of independently-rounded per-day
+        # cents from order time — that alone can drift by up to ~$0.005/day even
         # when the tier hasn't actually changed (confirmed live: an 11-day
         # order dropping to 10, still comfortably 10+, produced a phantom
         # -$0.01 "correction" purely from rounding). Scale the no-op
